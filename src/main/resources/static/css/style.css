@@ -1,0 +1,317 @@
+@font-face {
+    font-family: 'NotoSans';
+    src: url('/fonts/NotoSans-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+:root {
+    /* Palette de couleurs ERPNext officielle */
+    --blue-50: #f4f9ff;
+    --blue-100: #e8f2ff;
+    --blue-200: #d1e5ff;
+    --blue-300: #a4cbff;
+    --blue-400: #78b0ff;
+    --blue-500: #4282ff;
+    --blue-600: #2563eb;
+    --blue-700: #1d4ed8;
+    --blue-800: #1e40af;
+    --blue-900: #1e3a8a;
+    
+    --gray-50: #f8fafc;
+    --gray-100: #f1f5f9;
+    --gray-200: #e2e8f0;
+    --gray-300: #cbd5e1;
+    --gray-400: #94a3b8;
+    --gray-500: #64748b;
+    --gray-600: #475569;
+    --gray-700: #334155;
+    --gray-800: #1e293b;
+    --gray-900: #0f172a;
+    
+    --accent-color: #2563eb;
+    --text-color: #334155;
+    --light-bg: #f8fafc;
+    --light-border: #e2e8f0;
+    --hover-bg: #e8f2ff;
+}
+
+body {
+    background-color: var(--gray-50);
+    font-family: 'NotoSans', sans-serif;
+    overflow-x: hidden;
+    color: var(--text-color);
+    font-size: 0.875rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Main content area */
+.main-content {
+    margin-left: 240px;
+    padding: 1.5rem 2rem;
+    padding-top: calc(60px + 1.5rem); /* Espace pour la navbar */
+    min-height: 100vh;
+    transition: margin-left 0.3s ease;
+    background-color: var(--gray-50);
+}
+
+.welcome-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: calc(100vh - 120px);
+    padding: 2rem;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.welcome-message {
+    font-size: 2rem;
+    font-weight: 300;
+    color: var(--gray-700);
+    text-align: center;
+    line-height: 1.4;
+}
+
+.welcome-message .highlight {
+    color: var(--blue-600);
+    font-weight: 500;
+}
+
+/* User menu */
+.user-menu {
+    display: flex;
+    align-items: center;
+}
+
+.user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--blue-600);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    margin-right: 8px;
+    font-size: 0.75rem;
+}
+
+.dropdown-menu {
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border: 1px solid var(--gray-200);
+    padding: 0.5rem 0;
+}
+
+.dropdown-item {
+    padding: 0.5rem 1rem;
+    color: var(--gray-700);
+    font-size: 0.875rem;
+}
+
+.dropdown-item:hover {
+    background-color: var(--blue-50);
+    color: var(--blue-700);
+}
+
+.dropdown-item i {
+    color: var(--gray-500);
+    width: 1.25rem;
+    text-align: center;
+    margin-right: 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (min-width: 992px) {
+    .sidebar.offcanvas {
+        transform: translateX(0);
+        position: fixed;
+        top: 0; /* Start at the top */
+        height: 100vh; /* Full height */
+        visibility: visible;
+        transition: none;
+    }
+}
+
+@media (max-width: 991.98px) {
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .sidebar.offcanvas {
+        z-index: 1050;
+    }
+}
+
+/* TABLEAU -------------------------------------------------------------------------------------------------------- */
+/* Page header styling */
+.page-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.page-title {
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--gray-800);
+    margin: 0;
+}
+
+.page-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ERPNext List View styling */
+.frappe-list {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+}
+
+/* Table styling */
+.frappe-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.frappe-table .amount-col {
+    text-align: right;
+    white-space: nowrap;
+}
+
+.frappe-table .date-col {
+    white-space: nowrap;
+}
+
+.list-row-head {
+    background-color: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.list-row-head th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-weight: 600;
+}
+
+.list-row {
+    border-bottom: 1px solid var(--gray-200);
+    transition: background-color 0.2s;
+}
+
+.list-row:hover {
+    background-color: var(--blue-50);
+}
+
+.list-row:last-child {
+    border-bottom: none;
+}
+
+.list-row td {
+    padding: 0.75rem 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.checkbox-col {
+    width: 40px;
+}
+
+.actions-col {
+    width: 120px;
+    text-align: right;
+}
+
+/* ERPNext Indicators */
+.indicator-pill {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 999px; /* pill shape */
+    font-size: 0.85rem;
+    font-weight: 500;
+    text-align: center;
+}
+
+.indicator-pill.blue {
+    background-color: #e8f3ff; 
+    color: #1a73e8; 
+}
+
+.indicator-pill.red {
+    background-color: #ffeaea;
+    color: #e53935;
+}
+
+.indicator-pill.orange {
+    background-color: #fff3e0;
+    color: #f28c38;
+}
+
+.indicator-pill.green {
+    background-color: #e6f4ea;
+    color: #2e7d32;
+}
+
+.indicator-pill.gray {
+    background-color: var(--gray-200);
+    color: var(--gray-700);
+}
+
+/* Remove the dot circle */
+.indicator-pill::before {
+    display: none;
+}
+
+
+/* Action buttons */
+.actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-link {
+    color: var(--blue-600);
+    text-decoration: none;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.btn-link:hover {
+    color: var(--blue-800);
+    text-decoration: underline;
+}
+
+
+/* No results message */
+.no-result {
+    text-align: center;
+}
+
+.backButton {
+    margin-top: 20px;
+    margin-left: 10px;
+}
+
+.frappe-card { 
+    border: 1px solid #e5e5e5; 
+    border-radius: 6px; 
+    padding: 20px; 
+    background: #fff;
+}

@@ -1,0 +1,190 @@
+/* Sidebar (Offcanvas) styles */
+.sidebar.offcanvas {
+    width: 240px;
+    background-color: #fff;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+    z-index: 1020;
+    border-right: 1px solid var(--gray-200);
+    padding: 0;
+    position: fixed; /* Ensure it's fixed */
+    top: 0; /* Start at the top */
+    height: 100vh; /* Full viewport height */
+}
+
+.offcanvas-body {
+    padding: 0;
+}
+
+.sidebar-menu {
+    list-style: none;
+    padding: 0.75rem 0;
+    margin: 0;
+}
+
+.sidebar-menu li {
+    margin-bottom: 2px;
+}
+
+.sidebar-menu > li > a {
+    border-radius: 0 4px 4px 0;
+    margin-right: 12px;
+}
+
+.sidebar-item {
+    display: flex;
+    align-items: center;
+    padding: 0.625rem 1rem 0.625rem 1.25rem;
+    color: var(--gray-700);
+    text-decoration: none;
+    transition: all 0.2s;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-left: 3px solid transparent;
+}
+
+.sidebar-item:hover {
+    background-color: var(--blue-50);
+    color: var(--blue-700);
+}
+
+.sidebar-item.active {
+    background-color: var(--blue-50);
+    color: var(--blue-700);
+    font-weight: 600;
+    border-left: 3px solid var(--blue-600);
+}
+
+.sidebar-icon {
+    margin-right: 12px;
+    width: 16px;
+    text-align: center;
+    color: var(--gray-500);
+}
+
+.sidebar-item.active .sidebar-icon {
+    color: var(--blue-600);
+}
+
+/* Improved Dropdown menu styles */
+.sidebar .dropdown-menu {
+    background-color: transparent;
+    border: none;
+    width: 100%;
+    padding: 0.25rem 0;
+    margin: 0;
+    box-shadow: none;
+    position: static !important;
+    transform: none !important;
+}
+
+.sidebar .dropdown-item {
+    padding: 0.5rem 1rem 0.5rem 3rem;
+    color: var(--gray-600);
+    text-decoration: none;
+    transition: all 0.2s;
+    position: relative;
+    font-size: 0.8125rem;
+}
+
+.sidebar .dropdown-item:hover {
+    background-color: var(--blue-50);
+    color: var(--blue-700);
+}
+
+.sidebar .dropdown-item.active {
+    background-color: transparent;
+    color: var(--blue-700);
+    font-weight: 600;
+}
+
+.sidebar .dropdown-item.active::before {
+    content: '';
+    position: absolute;
+    left: 2rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 5px;
+    height: 5px;
+    background-color: var(--blue-600);
+    border-radius: 50%;
+}
+
+/* Dropdown toggle arrow */
+.sidebar .dropdown-toggle {
+    position: relative;
+    width: 100%;
+}
+
+.sidebar .dropdown-toggle::after {
+    border: none;
+    content: '';
+    border-style: solid;
+    border-width: 0.15em 0.15em 0 0;
+    height: 0.45em;
+    width: 0.45em;
+    position: absolute;
+    right: 1.25rem;
+    top: 50%;
+    transform: translateY(-50%) rotate(135deg);
+    transition: transform 0.2s ease;
+    color: var(--gray-400);
+}
+
+.sidebar .dropdown-toggle.show::after {
+    transform: translateY(-50%) rotate(-45deg);
+}
+
+/* Animation pour l'ouverture/fermeture du dropdown */
+.sidebar .dropdown-menu {
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    display: block;
+    padding: 0;
+}
+
+.sidebar .dropdown-menu.show {
+    max-height: 300px;
+    opacity: 1;
+    padding: 0.25rem 0;
+}
+
+/* Amélioration de l'apparence des items du dropdown */
+.sidebar .dropdown-item {
+    padding: 0.5rem 1rem 0.5rem 3rem;
+    font-size: 0.8125rem;
+    border-left: 3px solid transparent;
+}
+
+.sidebar .dropdown-item.active {
+    border-left: 3px solid var(--blue-600);
+    background-color: var(--blue-50);
+}
+
+/* Section headers in sidebar */
+.sidebar-section-header {
+    color: var(--gray-500);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    padding: 1.25rem 1.5rem 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+/* Sidebar footer */
+.sidebar-footer {
+    padding: 1rem;
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    border-top: 1px solid var(--gray-200);
+    margin-top: auto;
+}
+
+/* Mobile Optimizations */
+@media (max-width: 991.98px) {
+    .sidebar.offcanvas {
+        border-right: none;
+    }
+}

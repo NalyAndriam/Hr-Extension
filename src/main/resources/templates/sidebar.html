@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>ERPNext Sidebar</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Sidebar Fragment -->
+    <div th:fragment="sidebar" class="sidebar offcanvas offcanvas-start" tabindex="-1" id="sidebar">
+        <div class="offcanvas-header d-lg-none">
+            <h5 class="offcanvas-title">Menu</h5>
+            <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+        </div>
+        
+        <div class="offcanvas-body">
+            <div class="sidebar-section-header">Navigation</div>
+            <ul class="sidebar-menu">
+                <li>
+                    <a th:href="@{/home}" th:class="${activeMenu == 'home' ? 'sidebar-item active' : 'sidebar-item'}">
+                        <i class="fas fa-home sidebar-icon"></i>
+                        <span>Home</span>
+                    </a>
+                </li>
+                
+                <!-- Ventes
+                <li class="dropdown">
+                    <a href="#" class="sidebar-item dropdown-toggle" data-bs-toggle="dropdown">
+                        <i class="fas fa-chart-line sidebar-icon"></i>
+                        <span>Ventes</span>
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#">Devis</a></li>
+                        <li><a class="dropdown-item" href="#">Commandes</a></li>
+                        <li><a class="dropdown-item" href="#">Factures</a></li>
+                        <li><a class="dropdown-item" href="#">Clients</a></li>
+                    </ul>
+                </li> -->
+                
+            </ul>
+        </div>
+        
+        <div class="sidebar-footer d-none d-lg-block">
+            <span>ERPNext v14.0.3</span>
+        </div>
+    </div>
+    
+    <!-- Bootstrap & jQuery Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Script personnalisé pour améliorer les dropdowns -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Ouvrir automatiquement le dropdown si un de ses enfants est actif
+            const activeDropdownItems = document.querySelectorAll('.dropdown-item.active');
+            activeDropdownItems.forEach(item => {
+                const parentDropdown = item.closest('.dropdown');
+                if (parentDropdown) {
+                    const dropdownToggle = parentDropdown.querySelector('.dropdown-toggle');
+                    const dropdownMenu = parentDropdown.querySelector('.dropdown-menu');
+                    dropdownToggle.classList.add('show');
+                    dropdownMenu.classList.add('show');
+                    
+                    // Ajuster la position des éléments dans le dropdown
+                    adjustDropdownPosition(parentDropdown);
+                }
+            });
+            
+            // Effet de transition amélioré pour les dropdowns
+            const dropdownToggles = document.querySelectorAll('.dropdown-toggle');
+            dropdownToggles.forEach(toggle => {
+                toggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const menu = this.nextElementSibling;
+                    const dropdown = this.closest('.dropdown');
+                    
+                    // Toggle show class
+                    this.classList.toggle('show');
+                    menu.classList.toggle('show');
+                    
+                    // Ajuster la position des éléments du dropdown
+                    if (menu.classList.contains('show')) {
+                        adjustDropdownPosition(dropdown);
+                    }
+                    
+                    // Fermer les autres dropdowns
+                    dropdownToggles.forEach(otherToggle => {
+                        if (otherToggle !== toggle) {
+                            otherToggle.classList.remove('show');
+                            otherToggle.nextElementSibling.classList.remove('show');
+                        }
+                    });
+                });
+            });
+            
+            // Fonction pour ajuster la position des éléments dans le dropdown
+            function adjustDropdownPosition(dropdown) {
+                if (!dropdown) return;
+                
+                const toggle = dropdown.querySelector('.dropdown-toggle');
+                const menu = dropdown.querySelector('.dropdown-menu');
+                
+                if (toggle && menu) {
+                    // S'assurer que le menu s'affiche sous le bouton toggle
+                    menu.style.position = 'relative';
+                    menu.style.top = '0';
+                    menu.style.zIndex = '1';
+                }
+            }
+        });
