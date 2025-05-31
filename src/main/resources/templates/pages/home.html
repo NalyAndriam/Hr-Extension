@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERPNext - Accueil</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" th:href="@{/css/navbar.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+    <!-- Sidebar -->
+    <div th:replace="~{sidebar :: sidebar}"></div>
+
+    <!-- Navbar -->
+    <div th:replace="~{navbar :: navbar}"></div>
+     
+    
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container-fluid p-0">
+            <!-- <div class="row mb-4">
+                <div class="col-12">
+                    <h4 class="page-title">Your shortcuts</h4>
+                </div>
+            </div> -->
+            
+            <div class="row">
+                <div class="col-12">
+                    <div class="welcome-container">
+                        <div class="welcome-message">
+                            <span class="highlight">Welcome</span> to the Frappe-HR extension !                          
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- <div class="row mt-4">
+                
+                <div class="col-md-4 mb-4">
+                    <div class="card dashboard-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title">Suppliers</h5>
+                                <i class="fas fa-truck text-secondary"></i>
+                            </div>
+                            <p class="card-text text-muted">Manage quotation requests & purchase orders </p>
+                            <a href="#" th:href="@{/suppliers}" class="btn btn-sm btn-outline-primary">See suppliers list</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4 mb-4">
+                    <div class="card dashboard-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="card-title">Accounting mode</h5>
+                                <i class="fas fa-chart-bar text-secondary"></i>
+                            </div>
+                            <p class="card-text text-muted">Manage purchase invoices</p>
+                            <a href="#" class="btn btn-sm btn-outline-primary">Voir les rapports</a>
+                        </div>
+                    </div>
+                </div>
+            </div> -->
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Ajustement pour le responsive design
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.querySelector('.sidebar');
+            const mainContent = document.querySelector('.main-content');
+            
+            function adjustLayout() {
+                if (window.innerWidth >= 992) {
+                    mainContent.style.marginLeft = '240px';
+                } else {
+                    mainContent.style.marginLeft = '0';
+                }
+            }
+            
+            // Exécuter au chargement
+            adjustLayout();
+            
+            // Exécuter au redimensionnement
+            window.addEventListener('resize', adjustLayout);
+            
+            // Ajuster au toggle de la sidebar sur mobile
+            const navbarToggler = document.querySelector('.navbar-toggler');
+            if (navbarToggler) {
+                navbarToggler.addEventListener('click', function() {
+                    if (window.innerWidth < 992) {
+                        if (sidebar.classList.contains('show')) {
+                            mainContent.style.marginLeft = '0';
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
