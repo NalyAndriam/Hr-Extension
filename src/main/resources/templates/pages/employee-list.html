@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERPNext - Employee</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/navbar.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+    <style>
+        .frappe-filter {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        .frappe-filter .form-control, .frappe-filter .form-select {
+            height: 34px;
+            font-size: 0.85rem;
+            border-radius: 4px;
+        }
+        @media print {
+            .no-print, .page-actions, .actions-col { display: none !important; }
+            .main-content { margin-left: 0; padding: 0; }
+            .frappe-card { border: none; box-shadow: none; padding: 0; }
+        }
+        .btn-link {
+            color: inherit;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+
+        .btn-link:hover {
+            text-decoration: underline;
+        }
+
+
+
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <div th:replace="~{navbar :: navbar}" class="no-print"></div>
+
+    <!-- Sidebar -->
+    <div th:replace="~{sidebar :: sidebar}" class="no-print"></div>
+
+    <!-- Main content -->
+    <div class="main-content">
+        <div class="container-fluid">
+            <!-- Page header -->
+            <div class="page-head">
+                <div>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="/home">Home</a></li>
+                            <li class="breadcrumb-item"><a href="#">HR</a></li>
+                            <li class="breadcrumb-item active" aria-current="page">Employee</li>
+                        </ol>
+                    </nav>
+                    <h1 class="page-title">Employee</h1>
+                </div>
+            </div>
+
+            <!-- Error message -->
+            <div th:if="${error}" class="alert alert-danger" role="alert">
+                <span th:text="${error}"></span>
+            </div>
+
+            <!-- Filter Form -->
+            <div class="frappe-card no-print">
+                <form th:action="@{/employee}" method="get" class="frappe-filter">
+                    <div>
+                        <label for="name" class="form-label small">Name</label>
+                        <input type="text" class="form-control" id="name" name="name" th:value="${nameFilter}" placeholder="Search by Name">
+                    </div>
+                    <div>
+                        <label for="department" class="form-label small">Department</label>
+                        <select class="form-select" id="department" name="department">
+                            <option value="">All Departments</option>
+                            <option th:each="dept : ${departments}" th:value="${dept.name}" th:text="${dept.name}" th:selected="${dept == departmentFilter}"></option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="status" class="form-label small">Status</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">All Statuses</option>
+                            <option th:each="stat : ${statuses}" th:value="${stat}" th:text="${stat}" th:selected="${stat == statusFilter}"></option>
+                        </select>
+                    </div>
+                    <div>
+                        <button type="submit" class="btn btn-primary btn-sm">Apply</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Employees Table -->
+            <div class="frappe-card frappe-list">
+                <table class="frappe-table">
+                    <thead class="list-row-head">
+                        <tr>
+                            <th scope="col">Full Name</th>
+                            <th scope="col">Status</th>
+                            <th scope="col">Department</th>
+                            <th scope="col">Designation</th>
+                            <th scope="col">ID</th>
+                            <th class="actions-col no-print" scope="col"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="list-row" th:each="employee : ${employees}">
+                            <td><a th:href="@{/employee-details/{id}(id=${employee.name})}" class="btn-link" th:text="${employee.employeeName}"></a></td>
+                            <td>
+                                <span th:text="${employee.status}"
+                                      th:class="${employee.status == 'Active' ? 'indicator-pill green' : 
+                                                  employee.status == 'Inactive' ? 'indicator-pill gray' : 
+                                                  employee.status == 'Suspended' ? 'indicator-pill orange' : 
+                                                  employee.status == 'Left' ? 'indicator-pill red' : 'indicator-pill gray'}">
+                                </span>
+                            </td>
+                            <td th:text="${employee.department}"></td>
+                            <td th:text="${employee.designation}"></td>
+                            <td th:text="${employee.name}"></td>
+                        </tr>
+                        <tr th:if="${employees == null or employees.isEmpty()}">
+                            <td colspan="6" class="no-result text-muted text-center py-3">
+                                No employees found.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
