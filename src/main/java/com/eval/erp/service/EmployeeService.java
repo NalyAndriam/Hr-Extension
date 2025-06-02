@@ -1,6 +1,7 @@
 package com.eval.erp.service;
 
 import com.eval.erp.model.Employee;
+import com.eval.erp.model.Salary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,14 +27,17 @@ public class EmployeeService {
     private final ErpNextApiService erpNextApiService;
     private final UtilService utilService;
     private final CompanyService companyService;
+    private final SalaryService salaryService;
 
     @Value("${erpnext.api.url}")
     private String frappeApiUrl;
 
-    public EmployeeService(ErpNextApiService erpNextApiService, UtilService utilService, CompanyService companyService) {
+    public EmployeeService(ErpNextApiService erpNextApiService, UtilService utilService, CompanyService companyService,
+                           SalaryService salaryService) {
         this.erpNextApiService = erpNextApiService;
         this.utilService = utilService;
         this.companyService = companyService;
+        this.salaryService= salaryService;
     }
 
     private List<Employee> convertIntoEmployee(List<Map<String, Object>> employeeData) {
@@ -56,6 +60,61 @@ public class EmployeeService {
             employees.add(dto);
         }
         return employees;
+    }
+
+    private Employee convertSingleEmployee(Map<String, Object> data) {
+        Employee dto = new Employee();
+        dto.setName((String) data.get("name"));
+        dto.setEmployeeName((String) data.get("employee_name"));
+        dto.setDepartment((String) data.get("department"));
+        dto.setDesignation((String) data.get("designation"));
+        dto.setStatus((String) data.get("status"));
+        String gender = (String) data.get("gender");
+        if (gender != null) {
+            dto.setGender(gender);
+        }
+        Date joining = utilService.getFormattedDate((String) data.get("date_of_joining"));
+        Date birth = utilService.getFormattedDate((String) data.get("date_of_birth"));
+        dto.setDateOfJoining(joining);
+        dto.setDateOfBirth(birth);
+        return dto;
+    }
+
+    public Employee getEmployeeById(String employeeId, String sid) throws Exception {
+        try {
+            String fields = "[\"*\"]";
+            String filters = "[ [\"name\",\"=\",\"" + employeeId + "\"] ]";
+            ResponseEntity<Map> response = erpNextApiService.getResource("Employee", fields, filters, sid);
+            if (response.getBody() == null || !response.getBody().containsKey("data")) {
+                logger.error("Invalid response from ERPNext API for employee {}: {}", employeeId, response);
+                throw new Exception("Invalid response from ERPNext API");
+            }
+            List<Map<String, Object>> employeeData = (List<Map<String, Object>>) response.getBody().get("data");
+            if (employeeData.isEmpty()) {
+                throw new Exception("Employee not found: " + employeeId);
+            }
+            return convertSingleEmployee(employeeData.get(0));
+        } catch (Exception e) {
+            logger.error("Error fetching employee {}: {}", employeeId, e.getMessage(), e);
+            throw new Exception("Error fetching employee: " + e.getMessage());
+        }
+    }
+
+    public List<Salary> getEmployeeSalaries(String employeeId, String sid) throws Exception {
+        try {
+            String fields = "[\"*\"]";
+            String filters = "[[\"employee\",\"=\",\"" + employeeId + "\"]]";
+            ResponseEntity<Map> response = erpNextApiService.getResource("Salary Slip", fields, filters, sid);
+            if (response.getBody() == null || !response.getBody().containsKey("data")) {
+                logger.error("Invalid response from ERPNext API for salaries of employee {}: {}", employeeId, response);
+                throw new Exception("Invalid response from ERPNext API");
+            }
+            List<Map<String, Object>> salaryData = (List<Map<String, Object>>) response.getBody().get("data");
+            return salaryService.convertIntoSalaries(salaryData);
+        } catch (Exception e) {
+            logger.error("Error fetching salaries for employee {}: {}", employeeId, e.getMessage(), e);
+            throw new Exception("Error fetching salaries: " + e.getMessage());
+        }
     }
 
     public List<Employee> getAllEmployees(String sid) throws Exception {

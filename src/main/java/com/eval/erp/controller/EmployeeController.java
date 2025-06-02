@@ -3,6 +3,7 @@ package com.eval.erp.controller;
 import com.eval.erp.model.Department;
 import com.eval.erp.model.Employee;
 import com.eval.erp.model.Gender;
+import com.eval.erp.model.Salary;
 import com.eval.erp.service.DepartmentService;
 import com.eval.erp.service.EmployeeService;
 import com.eval.erp.service.GenderService;
@@ -13,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.multipart.MultipartFile;
@@ -53,8 +55,8 @@ public class EmployeeController {
             @RequestParam Optional<String> department,
             @RequestParam Optional<String> status,
             @RequestParam Optional<String> gender,
-            @RequestParam Optional<String> dateOfJoining, // New parameter
-            @RequestParam Optional<String> dateOfBirth,   // New parameter
+            @RequestParam Optional<String> dateOfJoining,
+            @RequestParam Optional<String> dateOfBirth,
             Model model) {
         model.addAttribute("username", SecurityContextHolder.getContext().getAuthentication().getName());
         model.addAttribute("activeMenu", "employees");
@@ -73,7 +75,6 @@ public class EmployeeController {
             model.addAttribute("statuses", statuses);
             model.addAttribute("genders", genders);
 
-            // Add filter values to model to retain them in the UI
             model.addAttribute("nameFilter", name.orElse(""));
             model.addAttribute("idFilter", id.orElse(""));
             model.addAttribute("departmentFilter", department.orElse(""));
@@ -94,6 +95,29 @@ public class EmployeeController {
             model.addAttribute("error", e.getMessage());
         }
         return "pages/employee-list";
+    }
+
+    @GetMapping("/employee/{id}")
+    public String getEmployeeDetails(@PathVariable String id, Model model) {
+        model.addAttribute("username", SecurityContextHolder.getContext().getAuthentication().getName());
+        model.addAttribute("activeMenu", "employees");
+
+        try {
+            String sid = (String) session.getAttribute("erp_sid");
+            if (sid == null) {
+                model.addAttribute("error", "ERPNext session not found. Please reconnect.");
+                return "pages/employee-fiche";
+            }
+
+            Employee employee = employeeService.getEmployeeById(id, sid);
+            List<Salary> salaries = employeeService.getEmployeeSalaries(id, sid);
+
+            model.addAttribute("employee", employee);
+            model.addAttribute("salaries", salaries);
+        } catch (Exception e) {
+            model.addAttribute("error", e.getMessage());
+        }
+        return "pages/employee-fiche";
     }
 
     @PostMapping("/employee/import")

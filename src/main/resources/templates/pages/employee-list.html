@@ -133,7 +133,7 @@
                     </thead>
                     <tbody>
                         <tr class="list-row" th:each="employee : ${employees}">
-                            <td><a th:href="@{/employee-details/{id}(id=${employee.name})}" class="btn-link" th:text="${employee.employeeName}"></a></td>
+                            <td><a th:href="@{/employee/{id}(id=${employee.name})}" class="btn-link" th:text="${employee.employeeName}"></a></td>
                             <td>
                                 <span th:text="${employee.status}"
                                       th:class="${employee.status == 'Active' ? 'indicator-pill green' : 
