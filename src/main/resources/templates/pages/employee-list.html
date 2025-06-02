@@ -106,6 +106,7 @@
                             <th scope="col">Department</th>
                             <th scope="col">Designation</th>
                             <th scope="col">ID</th>
+                            <th scope="col">Gender</th>
                             <th class="actions-col no-print" scope="col"></th>
                         </tr>
                     </thead>
@@ -123,6 +124,7 @@
                             <td th:text="${employee.department}"></td>
                             <td th:text="${employee.designation}"></td>
                             <td th:text="${employee.name}"></td>
+                            <td th:text="${employee.gender}"></td>
                         </tr>
                         <tr th:if="${employees == null or employees.isEmpty()}">
                             <td colspan="6" class="no-result text-muted text-center py-3">

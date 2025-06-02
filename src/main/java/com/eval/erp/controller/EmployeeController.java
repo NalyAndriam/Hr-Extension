@@ -11,7 +11,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 
@@ -79,4 +81,57 @@ public class EmployeeController {
         }
         return "pages/employee-list";
     }
+
+    @PostMapping("/employee/import")
+    public String importEmployees(@RequestParam("csvFile") MultipartFile file, Model model) {
+        model.addAttribute("username", SecurityContextHolder.getContext().getAuthentication().getName());
+        model.addAttribute("activeMenu", "import");
+
+        try {
+            String sid = (String) session.getAttribute("erp_sid");
+            if (sid == null) {
+                model.addAttribute("error", "ERPNext session not found. Please reconnect.");
+                return "pages/import";
+            }
+
+            if (file.isEmpty()) {
+                model.addAttribute("error", "Please upload a valid CSV file.");
+                return "pages/import";
+            }
+
+            if (!file.getContentType().equals("text/csv") && !file.getContentType().equals("application/vnd.ms-excel")) {
+                model.addAttribute("error", "Invalid file type. Please upload a CSV file.");
+                return "pages/import";
+            }
+
+            List<String> importResults = employeeService.importEmployeesFromCsv(file, sid);
+            model.addAttribute("importResults", importResults);
+
+        } catch (Exception e) {
+            logger.error("Error importing employees: {}", e.getMessage());
+            model.addAttribute("error", e.getMessage());
+        }
+
+        return "pages/import";
+    }
+
+    @GetMapping("/employee/import")
+    public String showImportPage(Model model) {
+        model.addAttribute("username", SecurityContextHolder.getContext().getAuthentication().getName());
+        model.addAttribute("activeMenu", "import");
+
+        try {
+            String sid = (String) session.getAttribute("erp_sid");
+            if (sid == null) {
+                model.addAttribute("error", "ERPNext session not found. Please reconnect.");
+                return "pages/import";
+            }
+
+        } catch (Exception e) {
+            model.addAttribute("error", e.getMessage());
+        }
+
+        return "pages/import";
+    }
+
 }
