@@ -21,6 +21,15 @@
             .main-content { margin-left: 0; padding: 0; }
             .frappe-card { border: none; box-shadow: none; padding: 0; }
         }
+        .btn-link {
+            color: inherit;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+
+        .btn-link:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 <body>
@@ -86,7 +95,10 @@
                     </thead>
                     <tbody>
                         <tr th:each="salary : ${salaries}">
-                            <td th:text="${salary.name}"></td>
+                            <td>
+                                <a th:href="@{/employee/{employeeId}/payslip/{payslipId}(employeeId=${employee.name},payslipId=${#strings.replace(salary.name,'/','_')})}" 
+                                th:text="${salary.name}" class="btn-link"></a>
+                            </td>
                             <td th:text="${salary.month}"></td>
                             <td th:text="${salary.year}"></td>
                             <td th:text="${#numbers.formatDecimal(salary.grossPay, 0, 'COMMA', 2, 'POINT')}"></td>
@@ -103,14 +115,12 @@
                                                 salary.status == 'Cancelled' ? 'indicator-pill gray' :
                                                 'indicator-pill gray'}">
                                 </span>
-
                             </td>
                         </tr>
                         <tr th:if="${salaries == null or salaries.isEmpty()}">
-                            <td colspan="5" class="no-result text-muted text-center py-3">
+                            <td colspan="7" class="no-result text-muted text-center py-3">
                                 No salary records found.
                             </td>
-                            <td th:text="${salary.grossPay}"></td>
                         </tr>
                     </tbody>
                 </table>

@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERPNext - Payslip Details</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/navbar.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+    <style>
+        .frappe-card { border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; margin-bottom: 20px; }
+        .payslip-details { margin-bottom: 20px; }
+        .frappe-table { width: 100%; border-collapse: collapse; }
+        .frappe-table th, .frappe-table td { padding: 8px; border: 1px solid #dee2e6; }
+        .frappe-table th { background-color: #f8f9fa; }
+        .no-result { font-style: italic; }
+        .label-title {
+            font-weight: 700;
+            color: #2c3e50;
+            display: inline-block;
+            min-width: 150px; /* Ensure consistent alignment */
+        }
+        @media print {
+            .no-print { display: none !important; }
+            .main-content { margin-left: 0; padding: 0; }
+            .frappe-card { border: none; box-shadow: none; padding: 0; }
+        }
+        .btn-link {
+            color: inherit;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+        .btn-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <div th:replace="~{navbar :: navbar}" class="no-print"></div>
+
+    <!-- Sidebar -->
+    <div th:replace="~{sidebar :: sidebar}" class="no-print"></div>
+
+    <!-- Main content -->
+    <div class="main-content">
+        <div class="container-fluid">
+            <!-- Page header -->
+            <div class="page-head">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="/home">Home</a></li>
+                        <li class="breadcrumb-item"><a href="/employee">Employee</a></li>
+                        <li class="breadcrumb-item">
+                            <a th:href="@{/employee/{id}(id=${employeeId})}" th:text="${employeeId}"></a>
+                        </li>
+                        <li class="breadcrumb-item active" aria-current="page" 
+                            th:text="${payslip != null} ? ${payslip.name} : 'Payslip Details'"></li>
+                    </ol>
+                </nav>
+                <h1 class="page-title">Payslip Details</h1>
+            </div>
+
+            <!-- Error message -->
+            <div th:if="${error}" class="alert alert-danger" role="alert">
+                <span th:text="${error}"></span>
+            </div>
+            <div th:if="${payslip == null and error == null}" class="alert alert-warning" role="alert">
+                No payslip data available.
+            </div>
+
+            <!-- Payslip Details -->
+            <div th:if="${payslip}" class="frappe-card payslip-details" id="payslip-content">
+                <h4 th:text="${payslip.company}"></h4>
+                <h5>Payslip</h5>
+                <hr>
+                <h6>Employee Details</h6>
+                <p><strong class="label-title">Name:</strong> <span th:text="${payslip.employeeName}"></span></p>
+                <p><strong class="label-title">Employee ID:</strong> <span th:text="${payslip.employee}"></span></p>
+                <p><strong class="label-title">Department:</strong> <span th:text="${payslip.department} ?: 'N/A'"></span></p>
+                <p><strong class="label-title">Designation:</strong> <span th:text="${payslip.designation} ?: 'N/A'"></span></p>
+                <hr>
+                <h6>Payslip Period</h6>
+                <p><strong class="label-title">Salary Slip ID:</strong> <span th:text="${payslip.name}"></span></p>
+                <p><strong class="label-title">Month:</strong> <span th:text="${payslip.month}"></span></p>
+                <p><strong class="label-title">Year:</strong> <span th:text="${payslip.year}"></span></p>
+                <p><strong class="label-title">Start Date:</strong> <span th:text="${#dates.format(payslip.startDate, 'dd-MM-yyyy')}"></span></p>
+                <p><strong class="label-title">End Date:</strong> <span th:text="${#dates.format(payslip.endDate, 'dd-MM-yyyy')}"></span></p>
+                <p><strong class="label-title">Posting Date:</strong> <span th:text="${#dates.format(payslip.postingDate, 'dd-MM-yyyy')}"></span></p>
+                <p><strong class="label-title">Payroll Frequency:</strong> <span th:text="${payslip.payrollFrequency}"></span></p>
+                <p><strong class="label-title">Total Working Days:</strong> <span th:text="${payslip.totalWorkingDays}"></span></p>
+                <p><strong class="label-title">Payment Days:</strong> <span th:text="${payslip.paymentDays}"></span></p>
+                <p><strong class="label-title">Currency:</strong> <span th:text="${payslip.currency}"></span></p>
+                <p><strong class="label-title">Status:</strong>
+                    <span th:text="${payslip.status}"
+                          th:class="${payslip.status == 'Submitted' ? 'indicator-pill blue' :
+                                      payslip.status == 'Generated' ? 'indicator-pill violet' :
+                                      payslip.status == 'Approved' ? 'indicator-pill green' :
+                                      payslip.status == 'Paid' ? 'indicator-pill dark-green' :
+                                      payslip.status == 'Pending' ? 'indicator-pill orange' :
+                                      payslip.status == 'Rejected' ? 'indicator-pill red' :
+                                      payslip.status == 'Cancelled' ? 'indicator-pill gray' :
+                                      'indicator-pill gray'}">
+                    </span>
+                </p>
+                <hr>
+                <h6>Earnings and Deductions</h6>
+                <table class="frappe-table">
+                    <thead>
+                        <tr>
+                            <th><strong class="label-title">Description</strong></th>
+                            <th style="text-align: right;"><strong class="label-title">Amount (<span th:text="${payslip.currency}"></span>)</strong></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong class="label-title">Gross Pay</strong></td>
+                            <td style="text-align: right;" th:text="${#numbers.formatDecimal(payslip.grossPay, 0, 'COMMA', 2, 'POINT')}"></td>
+                        </tr>
+                        <tr>
+                            <td><strong class="label-title">Total Deduction</strong></td>
+                            <td style="text-align: right;" th:text="${#numbers.formatDecimal(payslip.totalDeduction, 0, 'COMMA', 2, 'POINT')}"></td>
+                        </tr>
+                        <tr>
+                            <td><strong class="label-title">Net Pay</strong></td>
+                            <td style="text-align: right;" th:text="${#numbers.formatDecimal(payslip.netPay, 0, 'COMMA', 2, 'POINT')}"></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <hr>
+                <h6>Total in Words</h6>
+                <p><strong class="label-title">Total in Words:</strong> <span th:text="${payslip.totalInWords}"></span></p>
+            </div>
+
+            <!-- Export to PDF Button -->
+            <div th:if="${payslip}" class="frappe-card no-print">
+                <button class="btn btn-primary" onclick="exportToPDF()">Export to PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript for PDF Export -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script th:inline="javascript">
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            // Payslip data from Thymeleaf
+            const payslipData = {
+                company: /*[[${payslip.company}]]*/ 'itu (Demo)',
+                employeeName: /*[[${payslip.employeeName}]]*/ '',
+                id: /*[[${payslip.name}]]*/ '',
+                employeeId: /*[[${payslip.employee}]]*/ '',
+                department: /*[[${payslip.department}]]*/ 'N/A',
+                designation: /*[[${payslip.designation}]]*/ 'N/A',
+                month: /*[[${payslip.month}]]*/ '',
+                year: /*[[${payslip.year}]]*/ '',
+                startDate: /*[[${#dates.format(payslip.startDate, 'dd-MM-yyyy')}]]*/ '',
+                endDate: /*[[${#dates.format(payslip.endDate, 'dd-MM-yyyy')}]]*/ '',
+                postingDate: /*[[${#dates.format(payslip.postingDate, 'dd-MM-yyyy')}]]*/ '',
+                payrollFrequency: /*[[${payslip.payrollFrequency}]]*/ '',
+                totalWorkingDays: /*[[${payslip.totalWorkingDays}]]*/ '',
+                paymentDays: /*[[${payslip.paymentDays}]]*/ '',
+                currency: /*[[${payslip.currency}]]*/ '',
+                status: /*[[${payslip.status}]]*/ '',
+                grossPay: /*[[${#numbers.formatDecimal(payslip.grossPay, 0, 'COMMA', 2, 'POINT')}]]*/ '',
+                totalDeduction: /*[[${#numbers.formatDecimal(payslip.totalDeduction, 0, 'COMMA', 2, 'POINT')}]]*/ '',
+                netPay: /*[[${#numbers.formatDecimal(payslip.netPay, 0, 'COMMA', 2, 'POINT')}]]*/ '',
+                totalInWords: /*[[${payslip.totalInWords}]]*/ ''
+            };
+
+            // Set fonts and colors
+            const primaryColor = '#2c3e50';
+            const labelColor = '#1a252f'; // Darker shade for titles
+            const valueColor = '#000000'; // Black for values
+            const headerFont = 'helvetica';
+            const bodyFont = 'helvetica';
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const margin = 15;
+            let yPosition = 20;
+
+            // Helper function to draw a horizontal line
+            function drawLine(y) {
+                doc.setDrawColor(200);
+                doc.line(margin, y, pageWidth - margin, y);
+            }
+
+            // Company Header
+            doc.setFont(headerFont, 'bold');
+            doc.setFontSize(16);
+            doc.setTextColor(primaryColor);
+            doc.text(String(payslipData.company || 'itu (Demo)'), margin, yPosition);
+            doc.setFontSize(12);
+            doc.text('Payslip', margin, yPosition + 7);
+            yPosition += 10;
+            drawLine(yPosition);
+            yPosition += 10;
+
+            // Employee Details
+            doc.setFont(headerFont, 'bold');
+            doc.setFontSize(12);
+            doc.setTextColor(primaryColor);
+            doc.text('Employee Details', margin, yPosition);
+            yPosition += 7;
+            doc.setFont(bodyFont, 'normal');
+            doc.setFontSize(10);
+            const employeeDetails = [
+                { label: 'Name:', value: String(payslipData.employeeName) },
+                { label: 'Employee ID:', value: String(payslipData.employeeId) },
+                { label: 'Department:', value: String(payslipData.department || 'N/A') },
+                { label: 'Designation:', value: String(payslipData.designation || 'N/A') }
+            ];
+            employeeDetails.forEach(item => {
+                doc.setFont(bodyFont, 'bold');
+                doc.setTextColor(labelColor);
+                doc.text(item.label, margin, yPosition);
+                doc.setFont(bodyFont, 'normal');
+                doc.setTextColor(valueColor);
+                doc.text(item.value, margin + 40, yPosition);
+                yPosition += 5;
+            });
+            yPosition += 5;
+            drawLine(yPosition);
+            yPosition += 10;
+
+            // Payslip Period
+            doc.setFont(headerFont, 'bold');
+            doc.setFontSize(12);
+            doc.setTextColor(primaryColor);
+            doc.text('Payslip Period', margin, yPosition);
+            yPosition += 7;
+            doc.setFont(bodyFont, 'normal');
+            doc.setFontSize(10);
+            const periodDetails = [
+                { label: 'Salary Slip ID:', value: String(payslipData.id) },
+                { label: 'Month:', value: String(payslipData.month) },
+                { label: 'Year:', value: String(payslipData.year) },
+                { label: 'Start Date:', value: String(payslipData.startDate) },
+                { label: 'End Date:', value: String(payslipData.endDate) },
+                { label: 'Posting Date:', value: String(payslipData.postingDate) },
+                { label: 'Payroll Frequency:', value: String(payslipData.payrollFrequency) },
+                { label: 'Total Working Days:', value: String(payslipData.totalWorkingDays) },
+                { label: 'Payment Days:', value: String(payslipData.paymentDays) },
+                { label: 'Currency:', value: String(payslipData.currency) },
+                { label: 'Status:', value: String(payslipData.status) }
+            ];
+            periodDetails.forEach(item => {
+                doc.setFont(bodyFont, 'bold');
+                doc.setTextColor(labelColor);
+                doc.text(item.label, margin, yPosition);
+                doc.setFont(bodyFont, 'normal');
+                doc.setTextColor(valueColor);
+                doc.text(item.value, margin + 40, yPosition);
+                yPosition += 5;
+            });
+            yPosition += 5;
+            drawLine(yPosition);
+            yPosition += 10;
+
+            // Earnings and Deductions Table
+            doc.setFont(headerFont, 'bold');
+            doc.setFontSize(12);
+            doc.setTextColor(primaryColor);
+            doc.text('Earnings and Deductions', margin, yPosition);
+            yPosition += 7;
+
+            // Table headers
+            const tableX = margin;
+            const col1Width = 80;
+            const col2Width = 40;
+            doc.setFont(bodyFont, 'bold');
+            doc.setFontSize(10);
+            doc.setFillColor(240, 240, 240);
+            doc.rect(tableX, yPosition, col1Width + col2Width, 7, 'F');
+            doc.setTextColor(labelColor);
+            doc.text('Description', tableX + 2, yPosition + 5);
+            doc.text(`Amount (${String(payslipData.currency)})`, tableX + col1Width + 2, yPosition + 5, { align: 'right' });
+            yPosition += 7;
+
+            // Table rows
+            doc.setFont(bodyFont, 'normal');
+            const rows = [
+                { desc: 'Gross Pay', amount: String(payslipData.grossPay) },
+                { desc: 'Total Deduction', amount: String(payslipData.totalDeduction) },
+                { desc: 'Net Pay', amount: String(payslipData.netPay) }
+            ];
+            rows.forEach(row => {
+                doc.rect(tableX, yPosition, col1Width + col2Width, 7);
+                doc.setFont(bodyFont, 'bold');
+                doc.setTextColor(labelColor);
+                doc.text(row.desc, tableX + 2, yPosition + 5);
+                doc.setFont(bodyFont, 'normal');
+                doc.setTextColor(valueColor);
+                doc.text(row.amount, tableX + col1Width + col2Width - 2, yPosition + 5, { align: 'right' });
+                yPosition += 7;
+            });
+            yPosition += 10;
+            drawLine(yPosition);
+            yPosition += 10;
+
+            // Total in Words
+            doc.setFont(headerFont, 'bold');
+            doc.setFontSize(12);
+            doc.setTextColor(primaryColor);
+            doc.text('Total in Words', margin, yPosition);
+            yPosition += 7;
+            doc.setFont(bodyFont, 'bold');
+            doc.setTextColor(labelColor);
+            doc.text('Total in Words:', margin, yPosition);
+            doc.setFont(bodyFont, 'normal');
+            doc.setTextColor(valueColor);
+            doc.text(String(payslipData.totalInWords), margin + 40, yPosition, { maxWidth: pageWidth - 2 * margin });
+            yPosition += 10;
+
+            // Footer
+            doc.setFont(bodyFont, 'italic');
+            doc.setFontSize(8);
+            doc.setTextColor(100);
+            doc.text('Generated by Naly', margin, doc.internal.pageSize.getHeight() - 10);
+
+            // Save the PDF
+            doc.save(`payslip_${payslipData.id.replace(/[/\\]/g, '_')}.pdf`);
+        }
+    </script>
+</body>
+</html>

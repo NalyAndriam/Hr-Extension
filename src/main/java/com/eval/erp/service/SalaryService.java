@@ -1,9 +1,15 @@
 package com.eval.erp.service;
 
+import com.eval.erp.model.Salary;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -11,28 +17,23 @@ import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
-import com.eval.erp.model.Salary;
+import java.time.ZoneId;
 
 @Service
 public class SalaryService {
 
     private static final Logger logger = LoggerFactory.getLogger(SalaryService.class);
 
-    private final UtilService utilService;
+    @Autowired
+    private ErpNextApiService erpNextApiService;
 
-    public SalaryService(UtilService utilService){
-        this.utilService= utilService;
-    }
-    
+    @Autowired
+    private UtilService utilService;
+
     public List<Salary> convertIntoSalaries(List<Map<String, Object>> salaryData) {
         List<Salary> salaries = new ArrayList<>();
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        DateFormat monthFormat = new SimpleDateFormat("MMMM", Locale.ENGLISH); // Ensure month is in English
+        DateFormat monthFormat = new SimpleDateFormat("MMMM", Locale.ENGLISH);
 
         for (Map<String, Object> data : salaryData) {
             Salary salary = new Salary();
@@ -42,16 +43,27 @@ public class SalaryService {
             salary.setGrossPay(data.get("gross_pay") != null ? ((Number) data.get("gross_pay")).doubleValue() : null);
             salary.setNetPay(data.get("net_pay") != null ? ((Number) data.get("net_pay")).doubleValue() : null);
             salary.setStatus((String) data.get("status"));
+            salary.setTotalDeduction(data.get("total_deduction") != null ? ((Number) data.get("total_deduction")).doubleValue() : null);
+            salary.setPayrollFrequency((String) data.get("payroll_frequency"));
+            salary.setTotalInWords((String) data.get("total_in_words"));
+            salary.setCompany((String) data.get("company"));
+            salary.setDepartment((String) data.get("department"));
+            salary.setDesignation((String) data.get("designation"));
+            salary.setTotalWorkingDays(data.get("total_working_days") != null ? ((Number) data.get("total_working_days")).doubleValue() : null);
+            salary.setPaymentDays(data.get("payment_days") != null ? ((Number) data.get("payment_days")).doubleValue() : null);
+            salary.setCurrency((String) data.get("currency"));
+
+            // Handle date fields
+            String postingDateStr = (String) data.get("posting_date");
+            String startDateStr = (String) data.get("start_date");
+            String endDateStr = (String) data.get("end_date");
 
             // Extract month and year from posting_date
-            String postingDateStr = (String) data.get("posting_date");
             if (postingDateStr != null && !postingDateStr.isEmpty()) {
                 try {
                     LocalDate postingDate = LocalDate.parse(postingDateStr, formatter);
                     salary.setYear(postingDate.getYear());
                     salary.setMonth(monthFormat.format(Date.from(postingDate.atStartOfDay(ZoneId.systemDefault()).toInstant())));
-                    
-                    // Set postingDate as java.util.Date
                     try {
                         salary.setPostingDate(utilService.getFormattedDate(postingDateStr));
                     } catch (Exception e) {
@@ -71,18 +83,57 @@ public class SalaryService {
                 salary.setPostingDate(null);
             }
 
+            // Handle start_date
+            if (startDateStr != null && !startDateStr.isEmpty()) {
+                try {
+                    salary.setStartDate(utilService.getFormattedDate(startDateStr));
+                } catch (Exception e) {
+                    logger.warn("Failed to format start_date for salary {}: {}", data.get("name"), e.getMessage());
+                    salary.setStartDate(null);
+                }
+            }
+
+            // Handle end_date
+            if (endDateStr != null && ! endDateStr.isEmpty()) {
+                try {
+                    salary.setEndDate(utilService.getFormattedDate(endDateStr));
+                } catch (Exception e) {
+                    logger.warn("Failed to format end_date for salary {}: {}", data.get("name"), e.getMessage());
+                    salary.setEndDate(null);
+                }
+            }
+
             // Log salary details
-            logger.info("Salary Details: Name={}, Employee={}, EmployeeName={}, Month={}, Year={}, GrossPay={}, PostingDate={}",
-                    salary.getName(), 
-                    salary.getEmployee(), 
-                    salary.getEmployeeName(), 
-                    salary.getMonth(), 
-                    salary.getYear(), 
-                    salary.getGrossPay(), 
-                    salary.getPostingDate());
-            
+            logger.info("Salary Details: Name={}, Employee={}, EmployeeName={}, Month={}, Year={}, GrossPay={}, NetPay={}, Status={}, TotalDeduction={}, PayrollFrequency={}, TotalInWords={}, StartDate={}, EndDate={}, PostingDate={}, Company={}, Department={}, Designation={}, TotalWorkingDays={}, PaymentDays={}, Currency={}",
+                    salary.getName(), salary.getEmployee(), salary.getEmployeeName(), salary.getMonth(),
+                    salary.getYear(), salary.getGrossPay(), salary.getNetPay(), salary.getStatus(),
+                    salary.getTotalDeduction(), salary.getPayrollFrequency(), salary.getTotalInWords(),
+                    salary.getStartDate(), salary.getEndDate(), salary.getPostingDate(),
+                    salary.getCompany(), salary.getDepartment(), salary.getDesignation(),
+                    salary.getTotalWorkingDays(), salary.getPaymentDays(), salary.getCurrency());
+
             salaries.add(salary);
         }
         return salaries;
+    }
+
+    public Salary getPayslipById(String payslipId, String sid) throws Exception {
+        try {
+            String fields = "[\"*\"]";
+            String filters = "[[\"name\",\"=\",\"" + payslipId + "\"]]";
+            ResponseEntity<Map> response = erpNextApiService.getResource("Salary Slip", fields, filters, sid);
+            if (response.getBody() == null || !response.getBody().containsKey("data")) {
+                logger.error("Invalid response from ERPNext API for payslip {}: {}", payslipId, response);
+                throw new Exception("Invalid response from ERPNext API");
+            }
+            List<Map<String, Object>> salaryData = (List<Map<String, Object>>) response.getBody().get("data");
+            if (salaryData.isEmpty()) {
+                throw new Exception("Payslip not found: " + payslipId);
+            }
+            return convertIntoSalaries(salaryData).get(0);
+        } catch (Exception e) {
+            logger.error("Error fetching payslip {}: {}", payslipId, e.getMessage(), e);
+            throw new Exception("Error fetching payslip: " + e.getMessage());
+        }
     }
 }
