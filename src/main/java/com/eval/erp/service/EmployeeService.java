@@ -13,6 +13,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -32,7 +33,7 @@ public class EmployeeService {
     public EmployeeService(ErpNextApiService erpNextApiService, UtilService utilService, CompanyService companyService) {
         this.erpNextApiService = erpNextApiService;
         this.utilService = utilService;
-        this.companyService= companyService;
+        this.companyService = companyService;
     }
 
     private List<Employee> convertIntoEmployee(List<Map<String, Object>> employeeData) {
@@ -44,13 +45,16 @@ public class EmployeeService {
             dto.setDepartment((String) data.get("department"));
             dto.setDesignation((String) data.get("designation"));
             dto.setStatus((String) data.get("status"));
-            // Directly set gender from API response
             String gender = (String) data.get("gender");
             if (gender != null) {
-                dto.setGender(gender); // Use a direct setter for gender
+                dto.setGender(gender);
             }
-                employees.add(dto);
-            }
+            Date joining = utilService.getFormattedDate((String) data.get("date_of_joining"));
+            Date birth = utilService.getFormattedDate((String) data.get("date_of_birth"));
+            dto.setDateOfJoining(joining);
+            dto.setDateOfBirth(birth);
+            employees.add(dto);
+        }
         return employees;
     }
 
@@ -70,18 +74,32 @@ public class EmployeeService {
         }
     }
 
-    public List<Employee> searchEmployees(Optional<String> name, Optional<String> department, Optional<String> status, String sid) throws Exception {
+    public List<Employee> searchEmployees(Optional<String> name, Optional<String> id, Optional<String> department, 
+                                         Optional<String> status, Optional<String> gender, 
+                                         Optional<String> dateOfJoining, Optional<String> dateOfBirth, String sid) throws Exception {
         try {
             String fieldsJson = "[\"*\"]";
             List<String> filters = new ArrayList<>();
             if (name.isPresent() && !name.get().isEmpty()) {
                 filters.add("[\"employee_name\",\"like\",\"%" + name.get() + "%\"]");
             }
+            if (id.isPresent() && !id.get().isEmpty()) {
+                filters.add("[\"name\",\"like\",\"%" + id.get() + "%\"]");
+            }
             if (department.isPresent() && !department.get().isEmpty()) {
                 filters.add("[\"department\",\"=\",\"" + department.get() + "\"]");
             }
             if (status.isPresent() && !status.get().isEmpty()) {
                 filters.add("[\"status\",\"=\",\"" + status.get() + "\"]");
+            }
+            if (gender.isPresent() && !gender.get().isEmpty()) {
+                filters.add("[\"gender\",\"=\",\"" + gender.get() + "\"]");
+            }
+            if (dateOfJoining.isPresent() && !dateOfJoining.get().isEmpty()) {
+                filters.add("[\"date_of_joining\",\"=\",\"" + dateOfJoining.get() + "\"]");
+            }
+            if (dateOfBirth.isPresent() && !dateOfBirth.get().isEmpty()) {
+                filters.add("[\"date_of_birth\",\"=\",\"" + dateOfBirth.get() + "\"]");
             }
             String filtersJson = filters.isEmpty() ? null : "[" + String.join(",", filters) + "]";
             logger.info("Calling getResource with fields: {}, filters: {}", fieldsJson, filtersJson);
@@ -122,27 +140,23 @@ public class EmployeeService {
 
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
-            // Validate header
             String headerLine = reader.readLine();
             if (headerLine == null || !headerLine.trim().toLowerCase().startsWith("ref,nom,prenom,genre,date embauche,date naissance,company")) {
                 throw new IllegalArgumentException("Invalid CSV header. Expected: Ref,Nom,Prenom,genre,Date embauche,date naissance,company");
             }
             logger.info("CSV header: {}", headerLine);
 
-            // Process each line
             String line;
-            int lineNumber = 1; // Start from 1 to account for header
+            int lineNumber = 1;
             while ((line = reader.readLine()) != null) {
                 lineNumber++;
                 try {
-                    // Skip empty lines
                     if (line.trim().isEmpty()) {
                         results.add(String.format("Line %d: Skipped empty line", lineNumber));
                         logger.info("Line {}: Skipped empty line", lineNumber);
                         continue;
                     }
 
-                    // Split the line by comma
                     String[] fields = line.split(",");
                     if (fields.length < 7) {
                         results.add(String.format("Line %d: Invalid number of fields, expected 7, found %d", lineNumber, fields.length));
@@ -150,33 +164,26 @@ public class EmployeeService {
                         continue;
                     }
 
-                    // Create Employee object and set fields
                     Employee employee = new Employee();
                     employee.setUtilService(utilService);
-                    employee.setName(fields[0].trim()); // Ref
-                    employee.setLastName(fields[1].trim()); // Nom
-                    employee.setFirstName(fields[2].trim()); // Prenom
-                    employee.setGenre(fields[3].trim()); // genre
-                    employee.setDateEmbauche(fields[4].trim()); // Date embauche
-                    employee.setDateNaissance(fields[5].trim()); // date naissance
-                    employee.setCompany(fields[6].trim()); // company
+                    employee.setName(fields[0].trim());
+                    employee.setLastName(fields[1].trim());
+                    employee.setFirstName(fields[2].trim());
+                    employee.setGenre(fields[3].trim());
+                    employee.setDateEmbauche(fields[4].trim());
+                    employee.setDateNaissance(fields[5].trim());
+                    employee.setCompany(fields[6].trim());
 
                     logger.info("Line {}: Raw employee data - Ref: {}, Nom: {}, Prenom: {}, genre: {}, Date embauche: {}, date naissance: {}, company: {}",
                             lineNumber, employee.getName(), employee.getLastName(), employee.getFirstName(),
                             employee.getGender(), employee.getDateEmbauche(), employee.getDateNaissance(), employee.getCompany());
 
-                    // Validate employee
                     employee.validate();
-
-                    // Ensure company exists or create it
                     if (!companyService.ensureCompanyExists(employee.getCompany(), sid, lineNumber, results)) {
-                        continue; // Skip employee if company creation fails
+                        continue;
                     }
-
-                    // Additional API validation
                     validateForApi(employee);
 
-                    // Check if employee exists and create/update via API
                     boolean employeeExists = checkEmployeeExists(employee.getName(), sid);
                     ResponseEntity<Map> response;
                     if (employeeExists) {

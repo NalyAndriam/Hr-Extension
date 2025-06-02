@@ -2,8 +2,10 @@ package com.eval.erp.controller;
 
 import com.eval.erp.model.Department;
 import com.eval.erp.model.Employee;
+import com.eval.erp.model.Gender;
 import com.eval.erp.service.DepartmentService;
 import com.eval.erp.service.EmployeeService;
+import com.eval.erp.service.GenderService;
 import com.eval.erp.service.StatusService;
 
 import org.slf4j.Logger;
@@ -22,7 +24,6 @@ import java.util.List;
 import java.util.Optional;
 
 @Controller
-
 public class EmployeeController {
 
     private static final Logger logger = LoggerFactory.getLogger(EmployeeController.class);
@@ -30,30 +31,35 @@ public class EmployeeController {
     private final EmployeeService employeeService;
     private final DepartmentService departmentService;
     private final StatusService statusService;
+    private final GenderService genderService;
     private final HttpSession session;
 
     @Value("${erpnext.api.url}")
     private String frappeApiUrl;
 
     public EmployeeController(EmployeeService employeeService, DepartmentService departmentService, 
-                              StatusService statusService, HttpSession session) {
+                              StatusService statusService, GenderService genderService, HttpSession session) {
         this.employeeService = employeeService;
-        this.departmentService= departmentService;
-        this.statusService= statusService;
-        this.session= session;
+        this.departmentService = departmentService;
+        this.statusService = statusService;
+        this.genderService = genderService;
+        this.session = session;
     }
 
     @GetMapping("/employee")
     public String getEmployees(
             @RequestParam Optional<String> name,
+            @RequestParam Optional<String> id,
             @RequestParam Optional<String> department,
             @RequestParam Optional<String> status,
+            @RequestParam Optional<String> gender,
+            @RequestParam Optional<String> dateOfJoining, // New parameter
+            @RequestParam Optional<String> dateOfBirth,   // New parameter
             Model model) {
         model.addAttribute("username", SecurityContextHolder.getContext().getAuthentication().getName());
         model.addAttribute("activeMenu", "employees");
 
         try {
-
             String sid = (String) session.getAttribute("erp_sid");
             if (sid == null) {
                 model.addAttribute("error", "ERPNext session not found. Please reconnect.");
@@ -62,18 +68,26 @@ public class EmployeeController {
 
             List<Department> departments = departmentService.getAllDepartments(sid);
             List<String> statuses = statusService.getAllStatuses();
+            List<Gender> genders = genderService.getAllGenders(sid);
             model.addAttribute("departments", departments);
             model.addAttribute("statuses", statuses);
+            model.addAttribute("genders", genders);
 
+            // Add filter values to model to retain them in the UI
             model.addAttribute("nameFilter", name.orElse(""));
+            model.addAttribute("idFilter", id.orElse(""));
             model.addAttribute("departmentFilter", department.orElse(""));
             model.addAttribute("statusFilter", status.orElse(""));
+            model.addAttribute("genderFilter", gender.orElse(""));
+            model.addAttribute("dateOfJoiningFilter", dateOfJoining.orElse(""));
+            model.addAttribute("dateOfBirthFilter", dateOfBirth.orElse(""));
 
             List<Employee> employees;
-            if (name.isEmpty() && department.isEmpty() && status.isEmpty()) {
+            if (name.isEmpty() && id.isEmpty() && department.isEmpty() && status.isEmpty() && gender.isEmpty() 
+                && dateOfJoining.isEmpty() && dateOfBirth.isEmpty()) {
                 employees = employeeService.getAllEmployees(sid);
             } else {
-                employees = employeeService.searchEmployees(name, department, status, sid);
+                employees = employeeService.searchEmployees(name, id, department, status, gender, dateOfJoining, dateOfBirth, sid);
             }
             model.addAttribute("employees", employees);
         } catch (Exception e) {
@@ -133,5 +147,4 @@ public class EmployeeController {
 
         return "pages/import";
     }
-
 }

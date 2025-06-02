@@ -77,6 +77,10 @@
                         <input type="text" class="form-control" id="name" name="name" th:value="${nameFilter}" placeholder="Search by Name">
                     </div>
                     <div>
+                        <label for="id" class="form-label small">Id</label>
+                        <input type="text" class="form-control" id="id" name="id" th:value="${idFilter}" placeholder="Search by Id">
+                    </div>
+                    <div>
                         <label for="department" class="form-label small">Department</label>
                         <select class="form-select" id="department" name="department">
                             <option value="">All Departments</option>
@@ -91,6 +95,23 @@
                         </select>
                     </div>
                     <div>
+                        <label for="gender" class="form-label small">Gender</label>
+                        <select class="form-select" id="gender" name="gender">
+                            <option value="">All genders</option>
+                            <option th:each="gend : ${genders}" th:value="${gend.name}" th:text="${gend.name}" th:selected="${gend == genderFilter}"></option>
+                        </select>
+                    </div>
+                    <!-- New Date of Joining Filter -->
+                    <div>
+                        <label for="dateOfJoining" class="form-label small">Date of Joining</label>
+                        <input type="date" class="form-control" id="dateOfJoining" name="dateOfJoining" th:value="${dateOfJoiningFilter}">
+                    </div>
+                    <!-- New Date of Birth Filter -->
+                    <div>
+                        <label for="dateOfBirth" class="form-label small">Date of Birth</label>
+                        <input type="date" class="form-control" id="dateOfBirth" name="dateOfBirth" th:value="${dateOfBirthFilter}">
+                    </div>
+                    <div>
                         <button type="submit" class="btn btn-primary btn-sm">Apply</button>
                     </div>
                 </form>
@@ -103,8 +124,8 @@
                         <tr>
                             <th scope="col">Full Name</th>
                             <th scope="col">Status</th>
-                            <th scope="col">Department</th>
-                            <th scope="col">Designation</th>
+                            <th scope="col">Date Of Birth</th>
+                            <th scope="col">Date Of Joining</th>
                             <th scope="col">ID</th>
                             <th scope="col">Gender</th>
                             <th class="actions-col no-print" scope="col"></th>
@@ -121,8 +142,8 @@
                                                   employee.status == 'Left' ? 'indicator-pill red' : 'indicator-pill gray'}">
                                 </span>
                             </td>
-                            <td th:text="${employee.department}"></td>
-                            <td th:text="${employee.designation}"></td>
+                            <td th:text="${#dates.format(employee.dateOfBirth, 'dd-MM-yyyy')}"></td>
+                            <td th:text="${#dates.format(employee.dateOfJoining, 'dd-MM-yyyy')}"></td>
                             <td th:text="${employee.name}"></td>
                             <td th:text="${employee.gender}"></td>
                         </tr>

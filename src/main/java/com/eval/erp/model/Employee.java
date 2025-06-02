@@ -131,6 +131,7 @@ public class Employee {
         }
     }
 
+
     public void setDateNaissance(String dateNaissance) throws IllegalArgumentException {
         logger.info("Setting dateNaissance: {}", dateNaissance);
         if (dateNaissance == null || dateNaissance.trim().isEmpty()) {
@@ -169,6 +170,14 @@ public class Employee {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public void setDateOfJoining (Date date){
+        this.dateOfJoining= date;
+    }
+
+    public void setDateOfBirth (Date date){
+        this.dateOfBirth= date;
     }
 
     public String getName() {
