@@ -31,20 +31,26 @@
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb">
                             <li class="breadcrumb-item"><a href="/home">Home</a></li>
-                            <li class="breadcrumb-item"><a href="/employee">Employee</a></li>
-                            <li class="breadcrumb-item active" aria-current="page">Import Employees</li>
+                            <li class="breadcrumb-item active" aria-current="page">Import</li>
                         </ol>
                     </nav>
-                    <h1 class="page-title">Import Employees</h1>
+                    <h1 class="page-title">Import data</h1>
                 </div>
             </div>
             <div th:if="${error}" class="alert alert-danger" role="alert">
                 <span th:text="${error}"></span>
             </div>
             <div class="frappe-card no-print import-form">
-                <form th:action="@{/employee/import}" method="post" enctype="multipart/form-data">
+                <!-- <form th:action="@{/employee/import}" method="post" enctype="multipart/form-data">
                     <div class="mb-3">
                         <label for="csvFile" class="form-label small">Upload Employee CSV</label>
+                        <input type="file" class="form-control" id="csvFile" name="csvFile" accept=".csv" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">Import CSV</button>
+                </form> -->
+                <form th:action="@{/salary-structure/import}" method="post" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="csvFile" class="form-label small">Upload Salary Structure CSV</label>
                         <input type="file" class="form-control" id="csvFile" name="csvFile" accept=".csv" required>
                     </div>
                     <button type="submit" class="btn btn-primary btn-sm">Import CSV</button>

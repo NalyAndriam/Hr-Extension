@@ -99,4 +99,14 @@ public class ErpNextApiService {
         }
     }
 
+    public ResponseEntity<Map> submitDocument(Map<String, Object> data, String sid) {
+        String url = erpNextApiUrl + "/api/method/frappe.client.submit";
+        return executePostRequest(url, data, sid);
+    }
+
+    public ResponseEntity<Map> submitResource(String resourceType, String id, String sid) {
+        String url = erpNextApiUrl + "/api/resource/" + resourceType + "/" + id + "?run_method=submit";
+        return executePostRequest(url, null, sid); // Pas de payload nécessaire pour submit
+    }
+
 }

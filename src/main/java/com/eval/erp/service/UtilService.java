@@ -70,4 +70,14 @@ public class UtilService {
             throw new IllegalArgumentException("Invalid output pattern: " + outputPattern);
         }
     }
+
+    public String normalizeName(String name) {
+        if (name == null) return null;
+        return name.replaceAll("\\s+", "-")
+                .replaceAll("[éèêë]", "e")
+                .replaceAll("[àáâãäå]", "a")
+                .replaceAll("[îï]", "i")
+                .replaceAll("[ôö]", "o")
+                .replaceAll("[ùúûü]", "u");
+    }
 }
