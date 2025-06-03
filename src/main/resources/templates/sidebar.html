@@ -40,11 +40,8 @@
                         <li><a class="dropdown-item" th:href="@{/employee}" th:class="${activeMenu == 'employees' ? 'sidebar-item active' : 'sidebar-item'}">
                             <i class="fas fa-list sidebar-icon"></i> Employees
                         </a></li>
-                        <li><a class="dropdown-item" th:href="@{/employee/profile}">
-                            <i class="fas fa-id-card"></i> Profile
-                        </a></li>
-                        <li><a class="dropdown-item" th:href="@{/payroll/summary}">
-                            <i class="fas fa-table"></i> Payroll
+                        <li><a class="dropdown-item" th:href="@{/salaries}" th:class="${activeMenu == 'salaries' ? 'sidebar-item active' : 'sidebar-item'}">
+                            <i class="fas fa-money-bill-wave sidebar-icon"></i> Salaries
                         </a></li>
                     </ul>
                 </li>

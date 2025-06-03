@@ -1,6 +1,8 @@
 package com.eval.erp.service;
 
 import com.eval.erp.model.Salary;
+import com.eval.erp.model.SalarySummary;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +15,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -53,12 +56,10 @@ public class SalaryService {
             salary.setPaymentDays(data.get("payment_days") != null ? ((Number) data.get("payment_days")).doubleValue() : null);
             salary.setCurrency((String) data.get("currency"));
 
-            // Handle date fields
             String postingDateStr = (String) data.get("posting_date");
             String startDateStr = (String) data.get("start_date");
             String endDateStr = (String) data.get("end_date");
 
-            // Extract month and year from posting_date
             if (postingDateStr != null && !postingDateStr.isEmpty()) {
                 try {
                     LocalDate postingDate = LocalDate.parse(postingDateStr, formatter);
@@ -83,7 +84,6 @@ public class SalaryService {
                 salary.setPostingDate(null);
             }
 
-            // Handle start_date
             if (startDateStr != null && !startDateStr.isEmpty()) {
                 try {
                     salary.setStartDate(utilService.getFormattedDate(startDateStr));
@@ -93,8 +93,7 @@ public class SalaryService {
                 }
             }
 
-            // Handle end_date
-            if (endDateStr != null && ! endDateStr.isEmpty()) {
+            if (endDateStr != null && !endDateStr.isEmpty()) {
                 try {
                     salary.setEndDate(utilService.getFormattedDate(endDateStr));
                 } catch (Exception e) {
@@ -103,16 +102,11 @@ public class SalaryService {
                 }
             }
 
-            // Log salary details
-            logger.info("Salary Details: Name={}, Employee={}, EmployeeName={}, Month={}, Year={}, GrossPay={}, NetPay={}, Status={}, TotalDeduction={}, PayrollFrequency={}, TotalInWords={}, StartDate={}, EndDate={}, PostingDate={}, Company={}, Department={}, Designation={}, TotalWorkingDays={}, PaymentDays={}, Currency={}",
+            logger.info("Salary Details: Name={}, Employee={}, EmployeeName={}, Month={}, Year={}, GrossPay={}, NetPay={}, Status={}, TotalDeduction={}, PayrollFrequency={}, TotalInWords={}", startDateStr, endDateStr, postingDateStr,
                     salary.getName(), salary.getEmployee(), salary.getEmployeeName(), salary.getMonth(),
                     salary.getYear(), salary.getGrossPay(), salary.getNetPay(), salary.getStatus(),
-                    salary.getTotalDeduction(), salary.getPayrollFrequency(), salary.getTotalInWords(),
-                    salary.getStartDate(), salary.getEndDate(), salary.getPostingDate(),
-                    salary.getCompany(), salary.getDepartment(), salary.getDesignation(),
-                    salary.getTotalWorkingDays(), salary.getPaymentDays(), salary.getCurrency());
-
-            salaries.add(salary);
+                    salary.getTotalDeduction(), salary.getPayrollFrequency(), salary.getTotalInWords());
+                    salaries.add(salary);
         }
         return salaries;
     }
@@ -123,8 +117,8 @@ public class SalaryService {
             String filters = "[[\"name\",\"=\",\"" + payslipId + "\"]]";
             ResponseEntity<Map> response = erpNextApiService.getResource("Salary Slip", fields, filters, sid);
             if (response.getBody() == null || !response.getBody().containsKey("data")) {
-                logger.error("Invalid response from ERPNext API for payslip {}: {}", payslipId, response);
-                throw new Exception("Invalid response from ERPNext API");
+                logger.error("Invalid response from payroll: {}", payslipId);
+                throw new Exception("Invalid response from payroll API");
             }
             List<Map<String, Object>> salaryData = (List<Map<String, Object>>) response.getBody().get("data");
             if (salaryData.isEmpty()) {
@@ -132,8 +126,60 @@ public class SalaryService {
             }
             return convertIntoSalaries(salaryData).get(0);
         } catch (Exception e) {
-            logger.error("Error fetching payslip {}: {}", payslipId, e.getMessage(), e);
-            throw new Exception("Error fetching payslip: " + e.getMessage());
+            logger.error("Error retrieving payslip {}: {}", payslipId, e.getMessage(), e);
+            throw new Exception("Error retrieving payslip: " + e.getMessage());
+        }
+    }
+
+
+    public SalarySummary getSalariesByMonth(String month, String year, String sid) throws Exception {
+        try {
+            String fields = "[\"*\"]";
+            String filters = "[]";
+            if (month != null && !month.isEmpty() && year != null && !year.isEmpty()) {
+                // Convert month name to number (e.g., "January" -> "01")
+                String monthNum = String.format("%02d", Arrays.asList(
+                    new SimpleDateFormat("MMMM", Locale.ENGLISH).getDateFormatSymbols().getMonths()
+                ).indexOf(month) + 1);
+
+                // Calculate the first and last day of the month
+                String startDate = year + "-" + monthNum + "-01";
+                String endDate = LocalDate.of(Integer.parseInt(year), Integer.parseInt(monthNum), 1)
+                                        .withDayOfMonth(LocalDate.of(Integer.parseInt(year), Integer.parseInt(monthNum), 1)
+                                        .lengthOfMonth())
+                                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+
+                // Use 'between' operator for date range
+                filters = "[[\"posting_date\",\"between\",[\"" + startDate + "\",\"" + endDate + "\"]]]";
+            }
+
+            ResponseEntity<Map> response = erpNextApiService.getResource("Salary Slip", fields, filters, sid);
+            if (response.getBody() == null || !response.getBody().containsKey("data")) {
+                logger.error("Invalid response from ERPNext API for salaries: {}", response);
+                throw new Exception("Invalid response from ERPNext API");
+            }
+
+            List<Map<String, Object>> salaryData = (List<Map<String, Object>>) response.getBody().get("data");
+            List<Salary> salaries = convertIntoSalaries(salaryData);
+
+            double totalGrossPay = 0.0;
+            double totalDeductions = 0.0;
+            double totalNetPay = 0.0;
+
+            for (Salary salary : salaries) {
+                if (salary.getGrossPay() != null) totalGrossPay += salary.getGrossPay();
+                if (salary.getTotalDeduction() != null) totalDeductions += salary.getTotalDeduction();
+                if (salary.getNetPay() != null) totalNetPay += salary.getNetPay();
+            }
+
+            logger.info("Fetched {} salaries for month {}, year {}: grossPay={}, deductions={}, netPay={}",
+                salaries.size(), month != null ? month : "All", year != null ? year : "All", 
+                totalGrossPay, totalDeductions, totalNetPay);
+
+            return new SalarySummary(salaries, totalGrossPay, totalDeductions, totalNetPay);
+        } catch (Exception e) {
+            logger.error("Error fetching salaries for month {}, year {}: {}", month, year, e.getMessage(), e);
+            throw new Exception("Error fetching salaries: " + e.getMessage());
         }
     }
 }
