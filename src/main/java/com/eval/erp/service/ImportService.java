@@ -301,8 +301,12 @@ public class ImportService {
                 Map<String, Object> child = new HashMap<>();
                 child.put("salary_component", component.getName());
                 child.put("salary_component_abbr", component.getSalaryComponentAbbr()); // Changement ici
+                child.put("amount_based_on_formula", true);
                 if (!component.getValeur().equalsIgnoreCase("base")) {
                     child.put("formula", component.getValeur());
+                }
+                if (component.getValeur().equalsIgnoreCase("base")) {
+                    child.put("formula", "base");
                 }
                 if (component.getType().equalsIgnoreCase("earning")) {
                     earnings.add(child);
@@ -489,13 +493,12 @@ public class ImportService {
 
                         // Soumettre le Salary Slip
                         ResponseEntity<Map> submitResponse = erpNextApiService.submitResource("Salary Slip", slipName, sid);
+                        // Après avoir soumis le Salary Slip, ajoutez ceci :
                         if (submitResponse.getStatusCode().is2xxSuccessful()) {
-                            results.add(String.format("Line %d: Salary Slip %s successfully submitted", lineNumber, slipName));
-                            logger.info("Line {}: Salary Slip {} successfully submitted", lineNumber, slipName);
-                        } else {
-                            String errorMsg = submitResponse.getBody() != null ? submitResponse.getBody().toString() : "Unknown error";
-                            results.add(String.format("Line %d: Failed to submit Salary Slip %s: %s", lineNumber, slipName, errorMsg));
-                            logger.error("Line {}: Failed to submit Salary Slip {}: {}", lineNumber, slipName, errorMsg);
+                            // Après la soumission du Salary Slip
+                            Map<String, Object> updateData = new HashMap<>();
+                            updateData.put("calculate_total_salary", 1);
+                            ResponseEntity<Map> updateResponse = erpNextApiService.updateResource("Salary Slip", slipName, updateData, sid);
                         }
                     } else {
                         String errorMsg = response.getBody() != null ? response.getBody().toString() : "Unknown error";

@@ -108,8 +108,8 @@ public class SalarySlip {
             data.put("start_date", utilService.formatDate(utilService.getFormattedDate(month), "yyyy-MM-dd"));
             data.put("end_date", utilService.getEndOfMonth(month, "dd/MM/yyyy"));
             data.put("posting_date", utilService.formatDate(utilService.getFormattedDate(month), "yyyy-MM-dd"));
-
-            // Ajouter les earnings
+            
+            // Ajouter le salaire de base comme composant principal
             List<Map<String, Object>> earnings = new ArrayList<>();
             Map<String, Object> baseEarning = new HashMap<>();
             baseEarning.put("salary_component", "Salaire Base");
@@ -117,7 +117,14 @@ public class SalarySlip {
             earnings.add(baseEarning);
             data.put("earnings", earnings);
 
-            // Si c'est une mise à jour, inclure le nom du Salary Slip
+            // Pour les autres composants, laisser ERPNext les calculer automatiquement
+            // en se basant sur la structure salariale
+            data.put("deductions", new ArrayList<>());
+            data.put("timesheets", new ArrayList<>());
+            
+            // Activer le calcul automatique
+            data.put("calculate_total_salary", 1);
+
             if (isUpdate) {
                 data.put("name", utilService.generateSalarySlipName(employeeId, month));
             }

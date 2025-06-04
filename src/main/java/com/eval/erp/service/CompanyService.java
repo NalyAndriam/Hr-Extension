@@ -24,57 +24,40 @@ public class CompanyService {
 
     public boolean ensureCompanyExists(String companyName, String sid, int lineNumber, List<String> results) {
         try {
-            // Check if company exists
+            // Vérifier si l'entreprise existe
             String fields = "[\"name\"]";
-            String filters = "[ [\"name\",\"=\",\"" + companyName + "\"] ]";
+            String filters = String.format("[[\"name\",\"=\",\"%s\"]]", companyName);
             ResponseEntity<Map> response = erpNextApiService.getResource("Company", fields, filters, sid);
             List<Map<String, Object>> companyData = (List<Map<String, Object>>) response.getBody().get("data");
 
             if (!companyData.isEmpty()) {
-                logger.info("Company '{}' exists for line {}", companyName, lineNumber);
+                logger.info("Company {} already exists", companyName);
                 return true;
             }
 
-            // Company doesn't exist, create it
-            logger.info("Company '{}' does not exist, creating for line {}", companyName, lineNumber);
+            // Créer une nouvelle entreprise
             Map<String, Object> companyPayload = new HashMap<>();
             companyPayload.put("company_name", companyName);
-            // Generate abbreviation (e.g., first 3 letters of company name)
-            String abbr = companyName.length() >= 3 ? companyName.substring(0, 3).toUpperCase() : companyName.toUpperCase();
-            companyPayload.put("abbr", abbr);
-            // Add mandatory fields
-            companyPayload.put("default_currency", "USD"); // Default currency, adjust as needed
-            companyPayload.put("country", "United States"); // Default country, adjust as needed
-
-            // Create a default Holiday List for the company
-            String holidayListName = createDefaultHolidayList(companyName, sid, lineNumber, results);
-            if (holidayListName != null) {
-                companyPayload.put("default_holiday_list", holidayListName);
-            } else {
-                results.add(String.format("Line %d: Failed to create default Holiday List for company '%s'", lineNumber, companyName));
-                logger.error("Failed to create default Holiday List for company '{}' for line {}", companyName, lineNumber);
-                return false;
-            }
+            companyPayload.put("default_currency", "USD"); // À ajuster selon la configuration
+            companyPayload.put("abbr", companyName.substring(0, Math.min(3, companyName.length())).toUpperCase());
+            companyPayload.put("country", "United States"); // À ajuster selon les besoins
+            companyPayload.put("default_holiday_list", "Jours fériés Madagascar 2025"); // À ajuster
+            companyPayload.put("docstatus", 1);
 
             ResponseEntity<Map> createResponse = erpNextApiService.postResource("Company", companyPayload, sid);
             if (createResponse.getStatusCode().is2xxSuccessful()) {
-                results.add(String.format("Line %d: Company '%s' successfully created with Holiday List '%s'", lineNumber, companyName, holidayListName));
-                logger.info("Company '{}' created successfully with Holiday List '{}' for line {}", companyName, holidayListName, lineNumber);
+                results.add(String.format("Line %d: Company %s successfully created", lineNumber, companyName));
+                logger.info("Company {} successfully created", companyName);
                 return true;
             } else {
                 String errorMsg = createResponse.getBody() != null ? createResponse.getBody().toString() : "Unknown error";
-                results.add(String.format("Line %d: Failed to create company '%s': %s", lineNumber, companyName, errorMsg));
-                logger.error("Failed to create company '{}' for line {}: {}", companyName, lineNumber, errorMsg);
+                results.add(String.format("Line %d: Failed to create company %s: %s", lineNumber, companyName, errorMsg));
+                logger.error("Failed to create company {}: {}", companyName, errorMsg);
                 return false;
             }
-        } catch (HttpClientErrorException e) {
-            String errorMsg = e.getResponseBodyAsString().isEmpty() ? e.getStatusText() : e.getResponseBodyAsString();
-            results.add(String.format("Line %d: Error checking/creating company '%s': %s", lineNumber, companyName, errorMsg));
-            logger.error("Error checking/creating company '{}' for line {}: {}", companyName, lineNumber, errorMsg);
-            return false;
         } catch (Exception e) {
-            results.add(String.format("Line %d: Error checking/creating company '%s': %s", lineNumber, companyName, e.getMessage()));
-            logger.error("Error checking/creating company '{}' for line {}: {}", companyName, lineNumber, e.getMessage(), e);
+            results.add(String.format("Line %d: Error checking/creating company %s: %s", lineNumber, companyName, e.getMessage()));
+            logger.error("Error checking/creating company {}: {}", companyName, e.getMessage());
             return false;
         }
     }

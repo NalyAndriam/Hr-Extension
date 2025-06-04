@@ -1,12 +1,20 @@
 package com.eval.erp.model;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.eval.erp.service.UtilService;
 
 public class SalaryComponent {
     private static final Logger logger = LoggerFactory.getLogger(SalaryComponent.class);
+
+    @Autowired
+    private UtilService utilService;
 
     private String salaryStructure;
     private String name;
@@ -25,7 +33,7 @@ public class SalaryComponent {
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Le nom du composant est requis.");
         }
-        if (salary_component_abbr == null || salary_component_abbr.trim().isEmpty()) { // Changement ici
+        if (salary_component_abbr == null || salary_component_abbr.trim().isEmpty()) {
             throw new IllegalArgumentException("L'abréviation du composant est requise.");
         }
         if (type == null || (!type.equalsIgnoreCase("earning") && !type.equalsIgnoreCase("deduction"))) {
@@ -36,6 +44,13 @@ public class SalaryComponent {
         }
         if (company == null || company.trim().isEmpty()) {
             throw new IllegalArgumentException("La société est requise.");
+        }
+        // Forcer valeur = "base" pour Salaire Base
+        if (name.equalsIgnoreCase("Salaire Base")) {
+            if (!valeur.equalsIgnoreCase("base")) {
+                logger.warn("Le composant 'Salaire Base' doit avoir valeur='base'. Correction automatique.");
+                valeur = "base";
+            }
         }
     }
 
@@ -100,24 +115,26 @@ public class SalaryComponent {
 
     public Map<String, Object> toMap(boolean isUpdate) {
         Map<String, Object> map = new HashMap<>();
-        if (!isUpdate) {
-            map.put("doctype", "Salary Component");
+        if (isUpdate) {
+            map.put("name", utilService.normalizeName(name));
         }
         map.put("salary_component", name);
-        if (isUpdate) {
-            map.put("name", normalizeName(name));
-        }
-        map.put("salary_component_abbr", salary_component_abbr); // Changement ici
+        map.put("salary_component_abbr", salary_component_abbr);
         map.put("type", type.equalsIgnoreCase("earning") ? "Earning" : "Deduction");
         map.put("company", company);
-        if (!valeur.equalsIgnoreCase("base")) {
-            map.put("formula", valeur);
-            map.put("amount_based_on_formula", 1);
-        }
-        map.put("is_payable", 1);
-        map.put("depends_on_payment_days", type.equalsIgnoreCase("earning") && valeur.equalsIgnoreCase("base") ? 1 : 0);
-        map.put("is_tax_applicable", type.equalsIgnoreCase("earning") ? 1 : 0);
-        logger.info("Données envoyées pour Salary Component '{}': {}", name, map);
+        map.put("is_tax_applicable", type.equalsIgnoreCase("earning"));
+        map.put("amount_based_on_formula", true);
+        map.put("condition", "1 == 1"); // Condition par défaut
+        map.put("formula", valeur.equalsIgnoreCase("base") ? "base" : valeur);
+        map.put("depends_on_payment_days", 0);
+        map.put("do_not_include_in_total", 0);
+        map.put("is_flexible_benefit", 0);
+        List<Map<String, String>> accounts = new ArrayList<>();
+        Map<String, String> account = new HashMap<>();
+        account.put("company", company);
+        account.put("account", "Cash - " + company.substring(0, Math.min(3, company.length())).toUpperCase());
+        accounts.add(account);
+        map.put("accounts", accounts);
         return map;
     }
 }

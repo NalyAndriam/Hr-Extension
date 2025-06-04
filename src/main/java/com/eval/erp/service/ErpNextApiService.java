@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -128,6 +129,8 @@ public class ErpNextApiService {
         }
     }
 
+    
+
     public ResponseEntity<Map> submitDocument(Map<String, Object> data, String sid) {
         String url = erpNextApiUrl + "/api/method/frappe.client.submit";
         return executePostRequest(url, data, sid);
@@ -137,4 +140,18 @@ public class ErpNextApiService {
         String url = erpNextApiUrl + "/api/resource/" + resourceType + "/" + id + "?run_method=submit";
         return executePostRequest(url, null, sid);
     }
+
+    public ResponseEntity<Map> runDocumentMethod(String doctype, String docName, String methodName, Map<String, Object> args, String sid) {
+        String url = erpNextApiUrl + "/api/method/frappe.client.run_doc_method";
+        Map<String, Object> data = new HashMap<>();
+        data.put("dt", doctype);
+        data.put("dn", docName);
+        data.put("method", methodName);
+        if (args != null && !args.isEmpty()) {
+            data.put("args", args);
+        }
+        return executePostRequest(url, data, sid);
+    }
+
+
 }

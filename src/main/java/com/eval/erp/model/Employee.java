@@ -235,11 +235,12 @@ public class Employee {
     public Map<String, Object> toMap(boolean isUpdate) {
         Map<String, Object> map = new HashMap<>();
         if (isUpdate) {
-            map.put("name", name);
+            //map.put("name", name);
         }
         map.put("employee_name", employeeName);
         map.put("first_name", firstName);
         map.put("last_name", lastName);
+        map.put("employee_number", name); // Utiliser Ref comme employee_number
         map.put("gender", gender);
         map.put("date_of_joining", utilService.formatDate(dateOfJoining, API_DATE_FORMAT));
         map.put("date_of_birth", utilService.formatDate(dateOfBirth, API_DATE_FORMAT));
