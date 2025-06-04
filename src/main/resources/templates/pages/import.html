@@ -19,6 +19,7 @@
         .import-results { margin-bottom: 15px; }
         .list-group-item-success { background-color: #e6ffed; border-color: #28a745; }
         .list-group-item-danger { background-color: #ffe6e6; border-color: #dc3545; }
+        .reset-button { margin-left: 10px; }
     </style>
 </head>
 <body>
@@ -40,20 +41,25 @@
             <div th:if="${error}" class="alert alert-danger" role="alert">
                 <span th:text="${error}"></span>
             </div>
+            <form th:action="@{/reset-data}" method="post" class="d-inline">
+                <button type="submit" class="btn btn-danger btn-sm reset-button" onclick="return confirm('Are you sure you want to reset all data? This action cannot be undone.');">Reset Data</button>
+            </form>
             <div class="frappe-card no-print import-form">
-                <!-- <form th:action="@{/employee/import}" method="post" enctype="multipart/form-data">
+                <form th:action="@{/import}" method="post" enctype="multipart/form-data">
                     <div class="mb-3">
-                        <label for="csvFile" class="form-label small">Upload Employee CSV</label>
-                        <input type="file" class="form-control" id="csvFile" name="csvFile" accept=".csv" required>
+                        <label for="employeeCsvFile" class="form-label small">Upload Employee CSV</label>
+                        <input type="file" class="form-control" id="employeeCsvFile" name="employeeCsvFile" accept=".csv">
+                    </div>
+                    <div class="mb-3">
+                        <label for="salaryStructureCsvFile" class="form-label small">Upload Salary Structure CSV</label>
+                        <input type="file" class="form-control" id="salaryStructureCsvFile" name="salaryStructureCsvFile" accept=".csv">
+                    </div>
+                    <div class="mb-3">
+                        <label for="salarySlipCsvFile" class="form-label small">Upload Salary Slip CSV</label>
+                        <input type="file" class="form-control" id="salarySlipCsvFile" name="salarySlipCsvFile" accept=".csv">
                     </div>
                     <button type="submit" class="btn btn-primary btn-sm">Import CSV</button>
-                </form> -->
-                <form th:action="@{/salary-structure/import}" method="post" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label for="csvFile" class="form-label small">Upload Salary Structure CSV</label>
-                        <input type="file" class="form-control" id="csvFile" name="csvFile" accept=".csv" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary btn-sm">Import CSV</button>
+                    
                 </form>
             </div>
             <div th:if="${importResults}" class="import-results">

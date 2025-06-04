@@ -40,6 +40,16 @@ public class ErpNextApiService {
         return executePostRequest(url, data, sid);
     }
 
+    public ResponseEntity<Map> deleteResource(String resourceType, String id, String sid) {
+        String url = erpNextApiUrl + "/api/resource/" + resourceType + "/" + id;
+        return executeDeleteRequest(url, sid);
+    }
+
+    public ResponseEntity<Map> cancelResource(String resourceType, String id, String sid) {
+        String url = erpNextApiUrl + "/api/resource/" + resourceType + "/" + id + "?run_method=cancel";
+        return executePostRequest(url, null, sid);
+    }
+
     private ResponseEntity<Map> executeGetRequest(String url, String sid) {
         RestTemplate restTemplate = new RestTemplate();
         HttpHeaders headers = new HttpHeaders();
@@ -99,6 +109,25 @@ public class ErpNextApiService {
         }
     }
 
+    private ResponseEntity<Map> executeDeleteRequest(String url, String sid) {
+        RestTemplate restTemplate = new RestTemplate();
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Cookie", sid);
+        HttpEntity<Void> request = new HttpEntity<>(headers);
+        try {
+            logger.info("DELETE request to: {}", url);
+            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.DELETE, request, Map.class);
+            logger.info("Response: StatusCode={}", response.getStatusCode());
+            return response;
+        } catch (HttpClientErrorException e) {
+            logger.error("HTTP error: {} - Response: {}", e.getStatusCode(), e.getResponseBodyAsString());
+            throw e;
+        } catch (Exception e) {
+            logger.error("Unexpected error: {}", e.getMessage());
+            throw e;
+        }
+    }
+
     public ResponseEntity<Map> submitDocument(Map<String, Object> data, String sid) {
         String url = erpNextApiUrl + "/api/method/frappe.client.submit";
         return executePostRequest(url, data, sid);
@@ -106,7 +135,6 @@ public class ErpNextApiService {
 
     public ResponseEntity<Map> submitResource(String resourceType, String id, String sid) {
         String url = erpNextApiUrl + "/api/resource/" + resourceType + "/" + id + "?run_method=submit";
-        return executePostRequest(url, null, sid); // Pas de payload nécessaire pour submit
+        return executePostRequest(url, null, sid);
     }
-
 }
