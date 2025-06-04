@@ -165,8 +165,8 @@ public class ImportService {
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
             String headerLine = reader.readLine();
-            if (headerLine == null || !headerLine.trim().toLowerCase().startsWith("salary structure,name,abbr,type,valeur,company")) {
-                throw new IllegalArgumentException("Invalid CSV header. Expected: salary structure,name,Abbr,type,valeur,company");
+            if (headerLine == null || !headerLine.trim().toLowerCase().startsWith("salary structure,name,abbr,type,valeur,company")) { // Changement ici
+                throw new IllegalArgumentException("Invalid CSV header. Expected: salary structure,name,abbr,type,valeur,company");
             }
             logger.info("CSV header: {}", headerLine);
 
@@ -189,13 +189,13 @@ public class ImportService {
                     SalaryComponent component = new SalaryComponent();
                     component.setSalaryStructure(fields[0].trim());
                     component.setName(fields[1].trim());
-                    component.setAbbr(fields[2].trim());
+                    component.setSalaryComponentAbbr(fields[2].trim()); // Changement ici
                     component.setType(fields[3].trim());
                     component.setValeur(fields[4].trim());
                     component.setCompany(fields[5].trim());
 
-                    logger.info("Line {}: Raw component data - Structure: {}, Name: {}, Abbr: {}, Type: {}, Valeur: {}, Company: {}",
-                            lineNumber, component.getSalaryStructure(), component.getName(), component.getAbbr(),
+                    logger.info("Line {}: Raw component data - Structure: {}, Name: {}, SalaryComponentAbbr: {}, Type: {}, Valeur: {}, Company: {}", // Changement ici
+                            lineNumber, component.getSalaryStructure(), component.getName(), component.getSalaryComponentAbbr(),
                             component.getType(), component.getValeur(), component.getCompany());
 
                     component.validate();
@@ -236,7 +236,7 @@ public class ImportService {
         for (SalaryComponent component : components) {
             int lineNumber = components.indexOf(component) + 2;
             try {
-                boolean componentExists = checkComponentExists(utilService.normalizeName(component.getName()), sid); // Vérifier avec le nom original
+                boolean componentExists = checkComponentExists(utilService.normalizeName(component.getName()), sid);
                 ResponseEntity<Map> response;
                 logger.info("Tentative de {} du composant {} (name: {}, salary_component: {})", componentExists ? "mise à jour" : "création", component.getName(), utilService.normalizeName(component.getName()), component.getName());
                 if (componentExists) {
@@ -280,7 +280,7 @@ public class ImportService {
             for (SalaryComponent component : components) {
                 Map<String, Object> child = new HashMap<>();
                 child.put("salary_component", component.getName());
-                child.put("abbr", component.getAbbr());
+                child.put("salary_component_abbr", component.getSalaryComponentAbbr()); // Changement ici
                 if (!component.getValeur().equalsIgnoreCase("base")) {
                     child.put("formula", component.getValeur());
                 }
