@@ -88,6 +88,7 @@
                             <th scope="col">Month</th>
                             <th scope="col">Year</th>
                             <th scope="col">Gross Pay</th>
+                            <th scope="col">Total Deduction</th>
                             <th scope="col">Net Pay</th>
                             <th scope="col">Posting Date</th>
                             <th scope="col">Status</th>
@@ -102,6 +103,7 @@
                             <td th:text="${salary.month}"></td>
                             <td th:text="${salary.year}"></td>
                             <td th:text="${#numbers.formatDecimal(salary.grossPay, 0, 'COMMA', 2, 'POINT')}"></td>
+                            <td th:text="'-' + ${#numbers.formatDecimal(salary.totalDeduction, 0, 'COMMA', 2, 'POINT')}"></td>
                             <td th:text="${#numbers.formatDecimal(salary.netPay, 0, 'COMMA', 2, 'POINT')}"></td>
                             <td th:text="${#dates.format(salary.postingDate, 'dd-MM-yyyy')}"></td>
                             <td>
