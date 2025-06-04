@@ -2,6 +2,7 @@ package com.eval.erp.service;
 
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 
@@ -79,5 +80,43 @@ public class UtilService {
                 .replaceAll("[îï]", "i")
                 .replaceAll("[ôö]", "o")
                 .replaceAll("[ùúûü]", "u");
+    }
+
+    public boolean isNumeric(String str) {
+        if (str == null || str.trim().isEmpty()) {
+            logger.error("Input string is null or empty");
+            return false;
+        }
+        try {
+            Double.parseDouble(str.trim());
+            return true;
+        } catch (NumberFormatException e) {
+            logger.error("Invalid numeric format: {}", str);
+            return false;
+        }
+    }
+
+    public String getEndOfMonth(String dateStr, String inputPattern) throws IllegalArgumentException {
+        try {
+            Date date = getFormattedDate(dateStr);
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(date);
+            calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH));
+            return formatDate(calendar.getTime(), "yyyy-MM-dd");
+        } catch (Exception e) {
+            logger.error("Error calculating end of month for date '{}': {}", dateStr, e.getMessage());
+            throw new IllegalArgumentException("Error calculating end of month: " + e.getMessage());
+        }
+    }
+
+    public String generateSalarySlipName(String employeeId, String month) {
+        try {
+            Date date = getFormattedDate(month);
+            String formattedMonth = formatDate(date, "yyyy-MM");
+            return String.format("%s-%s", normalizeName(employeeId), formattedMonth);
+        } catch (Exception e) {
+            logger.error("Error generating Salary Slip name for employee {} and month {}: {}", employeeId, month, e.getMessage());
+            throw new IllegalArgumentException("Error generating Salary Slip name: " + e.getMessage());
+        }
     }
 }

@@ -1,9 +1,9 @@
 package com.eval.erp.controller;
 
 import com.eval.erp.model.SalaryStructure;
-import com.eval.erp.service.EmployeeService;
 import com.eval.erp.service.ImportService;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -30,41 +30,7 @@ public class ImportController {
     @Autowired
     private HttpSession session;
 
-//---------------------------------------------------------EMPLOYEES-------------------------------------------------------------------
-    @PostMapping("/employee/import")
-    public String importEmployees(@RequestParam("csvFile") MultipartFile file, Model model) {
-        model.addAttribute("username", SecurityContextHolder.getContext().getAuthentication().getName());
-        model.addAttribute("activeMenu", "import");
-
-        try {
-            String sid = (String) session.getAttribute("erp_sid");
-            if (sid == null) {
-                model.addAttribute("error", "ERPNext session not found. Please reconnect.");
-                return "pages/import";
-            }
-
-            if (file.isEmpty()) {
-                model.addAttribute("error", "Please upload a valid CSV file.");
-                return "pages/import";
-            }
-
-            if (!file.getContentType().equals("text/csv") && !file.getContentType().equals("application/vnd.ms-excel")) {
-                model.addAttribute("error", "Invalid file type. Please upload a CSV file.");
-                return "pages/import";
-            }
-
-            List<String> importResults = importService.importEmployeesFromCsv(file, sid);
-            model.addAttribute("importResults", importResults);
-
-        } catch (Exception e) {
-            logger.error("Error importing employees: {}", e.getMessage());
-            model.addAttribute("error", e.getMessage());
-        }
-
-        return "pages/import";
-    }
-
-    @GetMapping("/employee/import")
+    @GetMapping("/import")
     public String showImportPage(Model model) {
         model.addAttribute("username", SecurityContextHolder.getContext().getAuthentication().getName());
         model.addAttribute("activeMenu", "import");
@@ -75,7 +41,6 @@ public class ImportController {
                 model.addAttribute("error", "ERPNext session not found. Please reconnect.");
                 return "pages/import";
             }
-
         } catch (Exception e) {
             model.addAttribute("error", e.getMessage());
         }
@@ -83,51 +48,83 @@ public class ImportController {
         return "pages/import";
     }
 
-//-----------------------------------------------------SALARY STRUCTURE-------------------------------------------------------------------
-
-    @GetMapping("/salary-structure/import")
-    public String showImportForm(Model model) {
-        logger.info("Affichage du formulaire d'importation de structure salariale");
+    @PostMapping("/import")
+    public String importData(
+            @RequestParam(value = "employeeCsvFile", required = false) MultipartFile employeeCsvFile,
+            @RequestParam(value = "salaryStructureCsvFile", required = false) MultipartFile salaryStructureCsvFile,
+            @RequestParam(value = "salarySlipCsvFile", required = false) MultipartFile salarySlipCsvFile,
+            Model model) {
         model.addAttribute("username", SecurityContextHolder.getContext().getAuthentication().getName());
         model.addAttribute("activeMenu", "import");
-        return "pages/import";
-    }
-
-    @PostMapping("/salary-structure/import")
-    public String importSalaryStructure(@RequestParam("csvFile") MultipartFile file, Model model) {
-        logger.info("Importation du fichier CSV : {}", file.getOriginalFilename());
-        model.addAttribute("username", SecurityContextHolder.getContext().getAuthentication().getName());
-        model.addAttribute("activeMenu", "import");
+        List<String> importResults = new ArrayList<>();
 
         try {
             String sid = (String) session.getAttribute("erp_sid");
             if (sid == null) {
-                logger.warn("Session ERPNext non trouvée pour l'importation");
-                model.addAttribute("error", "Session ERPNext non trouvée. Veuillez vous reconnecter.");
+                model.addAttribute("error", "ERPNext session not found. Please reconnect.");
                 return "pages/import";
             }
 
-            if (file.isEmpty()) {
-                logger.warn("Fichier CSV vide");
-                model.addAttribute("error", "Veuillez uploader un fichier CSV valide.");
+            // Validate that at least one file is uploaded
+            if ((employeeCsvFile == null || employeeCsvFile.isEmpty()) &&
+                (salaryStructureCsvFile == null || salaryStructureCsvFile.isEmpty()) &&
+                (salarySlipCsvFile == null || salarySlipCsvFile.isEmpty())) {
+                model.addAttribute("error", "Please upload at least one valid CSV file.");
                 return "pages/import";
             }
 
-            if (!file.getContentType().equals("text/csv") && !file.getContentType().equals("application/vnd.ms-excel")) {
-                logger.warn("Type de fichier invalide : {}", file.getContentType());
-                model.addAttribute("error", "Type de fichier invalide. Veuillez uploader un fichier CSV.");
+            // Validate file types
+            if (employeeCsvFile != null && !employeeCsvFile.isEmpty() &&
+                !isValidCsvFile(employeeCsvFile)) {
+                model.addAttribute("error", "Invalid file type for Employee CSV. Please upload a CSV file.");
+                return "pages/import";
+            }
+            if (salaryStructureCsvFile != null && !salaryStructureCsvFile.isEmpty() &&
+                !isValidCsvFile(salaryStructureCsvFile)) {
+                model.addAttribute("error", "Invalid file type for Salary Structure CSV. Please upload a CSV file.");
+                return "pages/import";
+            }
+            if (salarySlipCsvFile != null && !salarySlipCsvFile.isEmpty() &&
+                !isValidCsvFile(salarySlipCsvFile)) {
+                model.addAttribute("error", "Invalid file type for Salary Slip CSV. Please upload a CSV file.");
                 return "pages/import";
             }
 
-            SalaryStructure summary = importService.importSalaryStructure(file, sid);
-            model.addAttribute("importResults", summary.getResults());
-            model.addAttribute("summary", summary);
-            logger.info("Importation terminée : {} résultats", summary.getResults().size());
+            // Process Employee CSV
+            if (employeeCsvFile != null && !employeeCsvFile.isEmpty()) {
+                logger.info("Processing Employee CSV: {}", employeeCsvFile.getOriginalFilename());
+                List<String> employeeResults = importService.importEmployeesFromCsv(employeeCsvFile, sid);
+                importResults.addAll(employeeResults);
+            }
+
+            // Process Salary Structure CSV
+            if (salaryStructureCsvFile != null && !salaryStructureCsvFile.isEmpty()) {
+                logger.info("Processing Salary Structure CSV: {}", salaryStructureCsvFile.getOriginalFilename());
+                SalaryStructure salaryStructure = importService.importSalaryStructure(salaryStructureCsvFile, sid);
+                importResults.addAll(salaryStructure.getResults());
+            }
+
+            // Process Salary Slip CSV
+            if (salarySlipCsvFile != null && !salarySlipCsvFile.isEmpty()) {
+                logger.info("Processing Salary Slip CSV: {}", salarySlipCsvFile.getOriginalFilename());
+                List<String> salarySlipResults = importService.importSalarySlipsFromCsv(salarySlipCsvFile, sid);
+                importResults.addAll(salarySlipResults);
+            }
+
+            model.addAttribute("importResults", importResults);
+            logger.info("Import completed: {} results", importResults.size());
+
         } catch (Exception e) {
-            logger.error("Erreur lors de l'importation du CSV : {}", e.getMessage());
-            model.addAttribute("error", "Erreur lors de l'importation : " + e.getMessage());
+            logger.error("Error importing data: {}", e.getMessage());
+            model.addAttribute("error", "Error during import: " + e.getMessage());
         }
 
         return "pages/import";
+    }
+
+    private boolean isValidCsvFile(MultipartFile file) {
+        return file.getContentType() != null &&
+               (file.getContentType().equals("text/csv") ||
+                file.getContentType().equals("application/vnd.ms-excel"));
     }
 }
