@@ -1,7 +1,12 @@
 package com.eval.erp.model;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class SalaryTotal {
@@ -12,8 +17,9 @@ public class SalaryTotal {
     private Double totalNetPay;
     private List<Salary> salaries;
     private Map<String, Double> componentTotals;
-    private Map<String, Double> earningsDetails; // New field for earnings
-    private Map<String, Double> deductionsDetails; // New field for deductions
+    private Map<String, Double> earningsDetails;
+    private Map<String, Double> deductionsDetails;
+    private String monthYear; // New field for YYYY-MM format
 
     public SalaryTotal(String month, Integer year, Double totalGrossPay, Double totalDeductions, 
                       Double totalNetPay, List<Salary> salaries, Map<String, Double> componentTotals) {
@@ -39,6 +45,18 @@ public class SalaryTotal {
                 }
             }
         }
+
+        // Compute monthYear (e.g., "2025-03" for March 2025)
+        try {
+            SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM", Locale.ENGLISH);
+            Date date = monthFormat.parse(month);
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTime(date);
+            int monthNumber = calendar.get(Calendar.MONTH) + 1; // Months are 0-based, add 1
+            this.monthYear = String.format("%d-%02d", year, monthNumber);
+        } catch (ParseException e) {
+            this.monthYear = null; // Fallback in case of parsing error
+        }
     }
 
     // Getters and setters
@@ -60,4 +78,6 @@ public class SalaryTotal {
     public void setEarningsDetails(Map<String, Double> earningsDetails) { this.earningsDetails = earningsDetails; }
     public Map<String, Double> getDeductionsDetails() { return deductionsDetails; }
     public void setDeductionsDetails(Map<String, Double> deductionsDetails) { this.deductionsDetails = deductionsDetails; }
+    public String getMonthYear() { return monthYear; }
+    public void setMonthYear(String monthYear) { this.monthYear = monthYear; }
 }
