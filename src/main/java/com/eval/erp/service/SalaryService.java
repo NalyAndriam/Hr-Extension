@@ -3,6 +3,7 @@ package com.eval.erp.service;
 import com.eval.erp.model.Component;
 import com.eval.erp.model.Salary;
 import com.eval.erp.model.SalarySummary;
+import com.eval.erp.model.SalaryTotal;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,9 +21,11 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.time.ZoneId;
 
 @Service
@@ -61,6 +64,7 @@ public class SalaryService {
 
             if (data.get("earnings") != null) {
                 List<Map<String, Object>> earningsData = (List<Map<String, Object>>) data.get("earnings");
+                logger.info("Earnings for salary {}: {}", data.get("name"), earningsData);
                 List<Component> earnings = new ArrayList<>();
                 for (Map<String, Object> earning : earningsData) {
                     Component component = new Component();
@@ -69,10 +73,13 @@ public class SalaryService {
                     earnings.add(component);
                 }
                 salary.setEarnings(earnings);
+            } else {
+                logger.warn("No earnings data for salary {}", data.get("name"));
             }
 
             if (data.get("deductions") != null) {
                 List<Map<String, Object>> deductionsData = (List<Map<String, Object>>) data.get("deductions");
+                logger.info("Deductions for salary {}: {}", data.get("name"), deductionsData);
                 List<Component> deductions = new ArrayList<>();
                 for (Map<String, Object> deduction : deductionsData) {
                     Component component = new Component();
@@ -81,6 +88,8 @@ public class SalaryService {
                     deductions.add(component);
                 }
                 salary.setDeductions(deductions);
+            } else {
+                logger.warn("No deductions data for salary {}", data.get("name"));
             }
 
             String postingDateStr = (String) data.get("posting_date");
@@ -174,9 +183,9 @@ public class SalaryService {
     }
 
 
-    public SalarySummary getSalariesByMonth(String month, String year, String sid) throws Exception {
+    public List<Salary> getSalariesByMonth(String month, String year, String sid) throws Exception {
         try {
-            String fields = "[\"*\"]";
+            String fields = "[\"name\"]"; // Fetch only the name field initially to get IDs
             String filters = "[]";
             if (month != null && !month.isEmpty() && year != null && !year.isEmpty()) {
                 // Convert month name to number (e.g., "January" -> "01")
@@ -202,26 +211,118 @@ public class SalaryService {
             }
 
             List<Map<String, Object>> salaryData = (List<Map<String, Object>>) response.getBody().get("data");
-            List<Salary> salaries = convertIntoSalaries(salaryData);
+            List<Salary> salaries = new ArrayList<>();
 
-            double totalGrossPay = 0.0;
-            double totalDeductions = 0.0;
-            double totalNetPay = 0.0;
-
-            for (Salary salary : salaries) {
-                if (salary.getGrossPay() != null) totalGrossPay += salary.getGrossPay();
-                if (salary.getTotalDeduction() != null) totalDeductions += salary.getTotalDeduction();
-                if (salary.getNetPay() != null) totalNetPay += salary.getNetPay();
+            // Fetch detailed payslip data for each salary slip
+            for (Map<String, Object> data : salaryData) {
+                String payslipId = (String) data.get("name");
+                try {
+                    Salary payslip = getPayslipById(payslipId, sid);
+                    salaries.add(payslip);
+                } catch (Exception e) {
+                    logger.error("Error fetching details for payslip {}: {}", payslipId, e.getMessage());
+                    // Optionally continue to next payslip instead of failing entirely
+                    continue;
+                }
             }
 
-            logger.info("Fetched {} salaries for month {}, year {}: grossPay={}, deductions={}, netPay={}",
-                salaries.size(), month != null ? month : "All", year != null ? year : "All", 
-                totalGrossPay, totalDeductions, totalNetPay);
+            logger.info("Fetched {} salaries with details for month {}, year {}", 
+                        salaries.size(), month != null ? month : "All", year != null ? year : "All");
 
-            return new SalarySummary(salaries, totalGrossPay, totalDeductions, totalNetPay);
+            return salaries;
         } catch (Exception e) {
             logger.error("Error fetching salaries for month {}, year {}: {}", month, year, e.getMessage(), e);
             throw new Exception("Error fetching salaries: " + e.getMessage());
+        }
+    }
+
+    public List<SalaryTotal> getSalaryTotalsByYear(String year, String sid) throws Exception {
+        try {
+            String fields = "[\"*\"]";
+            String filters = "[]";
+            if (year != null && !year.isEmpty()) {
+                String startDate = year + "-01-01";
+                String endDate = year + "-12-31";
+                filters = "[[\"posting_date\",\"between\",[\"" + startDate + "\",\"" + endDate + "\"]]]";
+            }
+
+            ResponseEntity<Map> response = erpNextApiService.getResource("Salary Slip", fields, filters, sid);
+            if (response.getBody() == null || !response.getBody().containsKey("data")) {
+                logger.error("Invalid response from ERPNext API for salary totals: {}", response);
+                throw new Exception("Invalid response from ERPNext API");
+            }
+
+            List<Map<String, Object>> salaryData = (List<Map<String, Object>>) response.getBody().get("data");
+            List<Salary> salaries = convertIntoSalaries(salaryData);
+
+            // Group salaries by month and year
+            Map<String, List<Salary>> salariesByMonth = salaries.stream()
+                    .filter(s -> s.getMonth() != null && s.getYear() != null)
+                    .collect(Collectors.groupingBy(
+                            s -> s.getMonth() + "-" + s.getYear(),
+                            Collectors.toList()
+                    ));
+
+            List<SalaryTotal> salaryTotals = new ArrayList<>();
+            SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM", Locale.ENGLISH);
+
+            for (Map.Entry<String, List<Salary>> entry : salariesByMonth.entrySet()) {
+                String[] parts = entry.getKey().split("-");
+                String month = parts[0];
+                Integer yearNum = Integer.parseInt(parts[1]);
+
+                List<Salary> monthSalaries = entry.getValue();
+                double totalGrossPay = 0.0;
+                double totalDeductions = 0.0;
+                double totalNetPay = 0.0;
+                Map<String, Double> earningsDetails = new HashMap<>();
+                Map<String, Double> deductionsDetails = new HashMap<>();
+
+                for (Salary salary : monthSalaries) {
+                    if (salary.getGrossPay() != null) totalGrossPay += salary.getGrossPay();
+                    if (salary.getTotalDeduction() != null) totalDeductions += salary.getTotalDeduction();
+                    if (salary.getNetPay() != null) totalNetPay += salary.getNetPay();
+
+                    if (salary.getEarnings() != null) {
+                        for (Component earning : salary.getEarnings()) {
+                            if (earning.getDescription() != null && earning.getAmount() != null) {
+                                earningsDetails.merge(earning.getDescription(), earning.getAmount(), Double::sum);
+                            }
+                        }
+                    }
+                    if (salary.getDeductions() != null) {
+                        for (Component deduction : salary.getDeductions()) {
+                            if (deduction.getDescription() != null && deduction.getAmount() != null) {
+                                deductionsDetails.merge(deduction.getDescription(), deduction.getAmount(), Double::sum);
+                            }
+                        }
+                    }
+                }
+
+                logger.info("Totals for {} {}: GrossPay={}, Deductions={}, NetPay={}", 
+                            month, yearNum, totalGrossPay, totalDeductions, totalNetPay);
+                logger.info("Earnings Details: {}", earningsDetails);
+                logger.info("Deductions Details: {}", deductionsDetails);
+
+                SalaryTotal salaryTotal = new SalaryTotal(month, yearNum, totalGrossPay, totalDeductions,
+                        totalNetPay, earningsDetails, deductionsDetails);
+                salaryTotals.add(salaryTotal);
+            }
+
+            // Sort by year and month order
+            salaryTotals.sort((a, b) -> {
+                int yearCompare = a.getYear().compareTo(b.getYear());
+                if (yearCompare != 0) return yearCompare;
+                return Arrays.asList(monthFormat.getDateFormatSymbols().getMonths())
+                        .indexOf(a.getMonth()) - Arrays.asList(monthFormat.getDateFormatSymbols().getMonths())
+                        .indexOf(b.getMonth());
+            });
+
+            logger.info("Fetched {} salary totals for year {}", salaryTotals.size(), year != null ? year : "All");
+            return salaryTotals;
+        } catch (Exception e) {
+            logger.error("Error fetching salary totals for year {}: {}", year, e.getMessage(), e);
+            throw new Exception("Error fetching salary totals: " + e.getMessage());
         }
     }
 }

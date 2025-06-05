@@ -2,6 +2,7 @@ package com.eval.erp.controller;
 
 import com.eval.erp.model.Salary;
 import com.eval.erp.model.SalarySummary;
+import com.eval.erp.model.SalaryTotal;
 import com.eval.erp.service.SalaryService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,8 +18,12 @@ import jakarta.servlet.http.HttpSession;
 
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -99,18 +104,49 @@ public class SalaryController {
             }
             logger.info("Session sid for salary list: {}", sid);
 
-            SalarySummary summary = salaryService.getSalariesByMonth(month, year, sid);
-            model.addAttribute("salaries", summary.getSalaries());
-            model.addAttribute("totalGrossPay", summary.getTotalGrossPay());
-            model.addAttribute("totalDeductions", summary.getTotalDeductions());
-            model.addAttribute("totalNetPay", summary.getTotalNetPay());
+            List<Salary> salaries = salaryService.getSalariesByMonth(month, year, sid);
+            model.addAttribute("salaries", salaries);
             model.addAttribute("monthYear", monthYear);
-            logger.info("Fetched {} salaries for month: {}, year: {}", summary.getSalaries().size(), 
-                month != null ? month : "All", year != null ? year : "All");
+            logger.info("Fetched {} salaries for month: {}, year: {}", salaries.size(), 
+                        month != null ? month : "All", year != null ? year : "All");
         } catch (Exception e) {
             logger.error("Error fetching salary list for month {}, year {}: {}", month, year, e.getMessage());
             model.addAttribute("error", e.getMessage());
         }
         return "pages/salary-list";
     }
+
+    @GetMapping("/salaries/total")
+    public String getSalaryTotals(@RequestParam(required = false) String year, Model model) {
+        logger.info("Accessing salary totals for year: {}", year);
+        model.addAttribute("username", SecurityContextHolder.getContext().getAuthentication().getName());
+        model.addAttribute("activeMenu", "salary-total");
+
+        // List of years for the filter
+        List<String> years = IntStream.rangeClosed(2000, java.time.Year.now().getValue())
+                .mapToObj(String::valueOf)
+                .sorted((a, b) -> b.compareTo(a))
+                .collect(Collectors.toList());
+        model.addAttribute("years", years);
+
+        try {
+            String sid = (String) session.getAttribute("erp_sid");
+            if (sid == null) {
+                logger.warn("ERPNext session not found for salary totals. Session sid: null");
+                model.addAttribute("error", "ERPNext session not found. Please reconnect.");
+                return "pages/salary-total";
+            }
+            logger.info("Session sid for salary totals: {}", sid);
+
+            List<SalaryTotal> salaryTotals = salaryService.getSalaryTotalsByYear(year, sid);
+            model.addAttribute("salaryTotals", salaryTotals);
+            model.addAttribute("year", year);
+            logger.info("Fetched {} salary totals for year: {}", salaryTotals.size(), year != null ? year : "All");
+        } catch (Exception e) {
+            logger.error("Error fetching salary totals for year {}: {}", year, e.getMessage());
+            model.addAttribute("error", e.getMessage());
+        }
+        return "pages/salary-total";
+    }
+
 }

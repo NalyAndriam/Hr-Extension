@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ERPNext - Salary List</title>
+    <title>ERPNext - Salary Totals</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" th:href="@{/css/style.css}">
@@ -17,6 +17,7 @@
         .frappe-table th:first-child, .frappe-table td:first-child { text-align: left; }
         .frappe-table th:nth-child(2), .frappe-table td:nth-child(2) { text-align: left; }
         .no-result { font-style: italic; text-align: center; }
+        .total-row { font-weight: bold; background-color: #f8f9fa; }
         .details-table { margin-top: 10px; }
         .details-table th, .details-table td { padding: 6px; }
         @media print {
@@ -41,20 +42,26 @@
                 <nav aria-label="breadcrumb">
                     <ol class="breadcrumb">
                         <li class="breadcrumb-item"><a href="/home">Home</a></li>
-                        <li class="breadcrumb-item active" aria-current="page">Salary List</li>
+                        <li class="breadcrumb-item active" aria-current="page">Salary Totals</li>
                     </ol>
                 </nav>
-                <h1 class="page-title">Salary List</h1>
+                <h1 class="page-title">Salary Totals by Month</h1>
             </div>
 
-            <!-- Filter and Generate Report -->
+            <!-- Year Filter -->
             <div class="frappe-card no-print">
-                <form th:action="@{/salaries}" method="get" class="row g-3 align-items-center">
+                <form th:action="@{/salaries/total}" method="get" class="row g-3 align-items-center">
                     <div class="col-auto">
-                        <label for="monthYear" class="form-label">Month and Year:</label>
+                        <label for="year" class="form-label">Year:</label>
                     </div>
                     <div class="col-auto">
-                        <input type="month" id="monthYear" name="monthYear" class="form-control" th:value="${monthYear}">
+                        <select id="year" name="year" class="form-select">
+                            <option value="">All Years</option>
+                            <option th:each="yearOption : ${years}" 
+                                    th:value="${yearOption}" 
+                                    th:text="${yearOption}"
+                                    th:selected="${yearOption == year}"></option>
+                        </select>
                     </div>
                     <div class="col-auto">
                         <button type="submit" class="btn btn-primary">Filter</button>
@@ -66,17 +73,18 @@
             <div th:if="${error}" class="alert alert-danger" role="alert">
                 <span th:text="${error}"></span>
             </div>
-            <div th:if="${salaries == null or salaries.empty and error == null}" class="alert alert-warning" role="alert">
-                No salary data available for the selected month and year.
+            <div th:if="${salaryTotals == null or salaryTotals.empty and error == null}" 
+                 class="alert alert-warning" role="alert">
+                No salary data available for the selected year.
             </div>
 
-            <!-- Salary Table -->
-            <div th:if="${salaries != null and not salaries.empty}" class="frappe-card">
-                <table class="frappe-table" id="salary-table">
+            <!-- Salary Totals Table -->
+            <div th:if="${salaryTotals != null and not salaryTotals.empty}" class="frappe-card">
+                <table class="frappe-table" id="salary-totals-table">
                     <thead>
                         <tr>
                             <th>Month</th>
-                            <th>Name</th>
+                            <th>Year</th>
                             <th>Basic Salary</th>
                             <th>Deductions</th>
                             <th>Net Salary</th>
@@ -84,32 +92,32 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <tr th:each="salary, salaryStat : ${salaries}">
-                            <td th:text="${salary.month + ' ' + salary.year}"></td>
-                            <td th:text="${salary.employeeName}"></td>
-                            <td th:text="${#numbers.formatDecimal(salary.grossPay, 0, 'COMMA', 2, 'POINT')}"></td>
-                            <td th:text="${#numbers.formatDecimal(salary.totalDeduction, 0, 'COMMA', 2, 'POINT')}"></td>
-                            <td th:text="${#numbers.formatDecimal(salary.netPay, 0, 'COMMA', 2, 'POINT')}"></td>
+                        <tr th:each="total : ${salaryTotals}">
+                            <td th:text="${total.month}"></td>
+                            <td th:text="${total.year}"></td>
+                            <td th:text="${#numbers.formatDecimal(total.totalGrossPay, 0, 'COMMA', 2, 'POINT')}"></td>
+                            <td th:text="${#numbers.formatDecimal(total.totalDeductions, 0, 'COMMA', 2, 'POINT')}"></td>
+                            <td th:text="${#numbers.formatDecimal(total.totalNetPay, 0, 'COMMA', 2, 'POINT')}"></td>
                             <td>
                                 <button class="btn btn-link" 
                                         data-bs-toggle="collapse" 
-                                        th:attr="data-bs-target='#details-' + ${salaryStat.index}">
+                                        th:attr="data-bs-target='#details-${total.month}-${total.year}'">
                                     <i class="fas fa-info-circle"></i> Details
                                 </button>
                                 <div class="collapse details-table" 
-                                     th:id="'details-' + ${salaryStat.index}">
+                                     th:id="'details-' + ${total.month} + '-' + ${total.year}">
                                     <table class="table table-sm">
                                         <thead>
                                             <tr>
-                                                <th colspan="2">Earnings</th>
+                                                <th colspan="2">Earnings Components</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr th:each="earning : ${salary.earnings}">
-                                                <td th:text="${earning.description}"></td>
-                                                <td th:text="${#numbers.formatDecimal(earning.amount, 0, 'COMMA', 2, 'POINT')}"></td>
+                                            <tr th:each="entry : ${total.earningsDetails}">
+                                                <td th:text="${entry.key}"></td>
+                                                <td th:text="${#numbers.formatDecimal(entry.value, 0, 'COMMA', 2, 'POINT')}"></td>
                                             </tr>
-                                            <tr th:if="${salary.earnings == null or salary.earnings.empty}">
+                                            <tr th:if="${total.earningsDetails == null or total.earningsDetails.empty}">
                                                 <td colspan="2" class="no-result">No earnings components</td>
                                             </tr>
                                         </tbody>
@@ -117,15 +125,15 @@
                                     <table class="table table-sm">
                                         <thead>
                                             <tr>
-                                                <th colspan="2">Deductions</th>
+                                                <th colspan="2">Deductions Components</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <tr th:each="deduction : ${salary.deductions}">
-                                                <td th:text="${deduction.description}"></td>
-                                                <td th:text="${#numbers.formatDecimal(deduction.amount, 0, 'COMMA', 2, 'POINT')}"></td>
+                                            <tr th:each="entry : ${total.deductionsDetails}">
+                                                <td th:text="${entry.key}"></td>
+                                                <td th:text="${#numbers.formatDecimal(entry.value, 0, 'COMMA', 2, 'POINT')}"></td>
                                             </tr>
-                                            <tr th:if="${salary.deductions == null or salary.deductions.empty}">
+                                            <tr th:if="${total.deductionsDetails == null or total.deductionsDetails.empty}">
                                                 <td colspan="2" class="no-result">No deductions components</td>
                                             </tr>
                                         </tbody>
@@ -139,7 +147,7 @@
         </div>
     </div>
 
-    <!-- JavaScript for PDF Export -->
+    <!-- JavaScript -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>

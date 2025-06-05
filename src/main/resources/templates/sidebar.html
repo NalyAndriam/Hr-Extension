@@ -43,6 +43,9 @@
                         <li><a class="dropdown-item" th:href="@{/salaries}" th:class="${activeMenu == 'salaries' ? 'sidebar-item active' : 'sidebar-item'}">
                             <i class="fas fa-money-bill-wave sidebar-icon"></i> Salaries
                         </a></li>
+                        <li><a class="dropdown-item" th:href="@{/salaries/total}" th:class="${activeMenu == 'salary-total' ? 'sidebar-item active' : 'sidebar-item'}">
+                            <i class="fas fa-money-bill-wave sidebar-icon"></i> Total Salaries
+                        </a></li>
                     </ul>
                 </li>
                 

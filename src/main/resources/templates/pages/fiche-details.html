@@ -120,7 +120,7 @@
                             </thead>
                             <tbody>
                                 <tr th:each="earning : ${payslip.earnings}">
-                                    <td th:text="${earning.description}"></td>
+                                    <td th:text="${earning.description} "></td>
                                     <td style="text-align: right;" th:text="${#numbers.formatDecimal(earning.amount, 0, 'COMMA', 2, 'POINT')}"></td>
                                 </tr>
                                 <tr th:if="${payslip.earnings == null or payslip.earnings.isEmpty()}">
