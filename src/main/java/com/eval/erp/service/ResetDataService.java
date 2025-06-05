@@ -49,9 +49,7 @@ public class ResetDataService {
             try {
                 // Fetch all records for the doctype
                 String fields = "[\"name\", \"docstatus\"]"; // Include docstatus to check state
-                String filters = doctype.equals("Salary Component")
-                    ? "[[\"name\",\"not in\",\"" + String.join("\",\"", PROTECTED_SALARY_COMPONENTS) + "\"]]"
-                    : "";
+                String filters = "";
                 ResponseEntity<Map> response = erpNextApiService.getResource(doctype, fields, filters, sid);
                 List<Map<String, Object>> records = (List<Map<String, Object>>) response.getBody().get("data");
 

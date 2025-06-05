@@ -35,13 +35,21 @@ public class CompanyService {
                 return true;
             }
 
+            // Create or get the holiday list
+            String holidayListName = createDefaultHolidayList(companyName, sid, lineNumber, results);
+            if (holidayListName == null) {
+                results.add(String.format("Line %d: Failed to create company %s due to holiday list creation failure", lineNumber, companyName));
+                logger.error("Failed to create company {} due to holiday list creation failure", companyName);
+                return false;
+            }
+
             // Créer une nouvelle entreprise
             Map<String, Object> companyPayload = new HashMap<>();
             companyPayload.put("company_name", companyName);
-            companyPayload.put("default_currency", "USD"); // À ajuster selon la configuration
+            companyPayload.put("default_currency", "MGA"); // À ajuster selon la configuration
             companyPayload.put("abbr", companyName.substring(0, Math.min(3, companyName.length())).toUpperCase());
-            companyPayload.put("country", "United States"); // À ajuster selon les besoins
-            companyPayload.put("default_holiday_list", "Jours fériés Madagascar 2025"); // À ajuster
+            companyPayload.put("country", "Madagascar"); // À ajuster selon les besoins
+            companyPayload.put("default_holiday_list", holidayListName); // À ajuster
             companyPayload.put("docstatus", 1);
 
             ResponseEntity<Map> createResponse = erpNextApiService.postResource("Company", companyPayload, sid);

@@ -468,7 +468,7 @@ public class ImportService {
 
                     // Vérifier et créer une Salary Structure Assignment si nécessaire
                     String payrollDate = utilService.formatDate(utilService.getFormattedDate(salarySlip.getMonth()), "yyyy-MM-dd");
-                    if (!checkSalaryStructureAssignmentExists(employeeId, salarySlip.getSalaryStructure(), payrollDate, sid)) {
+                    if (!checkSalaryStructureAssignmentExists(salarySlip.getEmployeeId(), salarySlip.getSalaryStructure(), payrollDate, Double.parseDouble(salarySlip.getBaseSalary()), sid)) {
                         boolean assignmentCreated = createSalaryStructureAssignment(salarySlip, sid, lineNumber, results);
                         if (!assignmentCreated) {
                             results.add(String.format("Line %d: Failed to create Salary Structure Assignment for employee %s (Ref: %s)", lineNumber, employeeId, ref));
@@ -528,15 +528,19 @@ public class ImportService {
         return results;
     }
 
-    private boolean checkSalaryStructureAssignmentExists(String employeeId, String salaryStructure, String payrollDate, String sid) {
+    private boolean checkSalaryStructureAssignmentExists(String employeeId, String salaryStructure, String payrollDate, double baseSalary, String sid) {
         try {
-            String fields = "[\"name\"]";
-            String filters = String.format("[[\"employee\",\"=\",\"%s\"],[\"salary_structure\",\"=\",\"%s\"],[\"from_date\",\"<=\",\"%s\"]]", employeeId, salaryStructure, payrollDate);
+            String fields = "[\"name\", \"base\"]";
+            String filters = String.format(
+                "[[\"employee\",\"=\",\"%s\"],[\"salary_structure\",\"=\",\"%s\"],[\"from_date\",\"=\",\"%s\"],[\"base\",\"=\",\"%s\"]]",
+                employeeId, salaryStructure, payrollDate, baseSalary
+            );
             ResponseEntity<Map> response = erpNextApiService.getResource("Salary Structure Assignment", fields, filters, sid);
             List<Map<String, Object>> assignmentData = (List<Map<String, Object>>) response.getBody().get("data");
             return !assignmentData.isEmpty();
         } catch (Exception e) {
-            logger.error("Error checking Salary Structure Assignment for employee {} and payroll date {}: {}", employeeId, payrollDate, e.getMessage());
+            logger.error("Error checking Salary Structure Assignment for employee {}, structure {}, date {}, base {}: {}", 
+                        employeeId, salaryStructure, payrollDate, baseSalary, e.getMessage());
             return false;
         }
     }
@@ -547,10 +551,19 @@ public class ImportService {
             assignmentPayload.put("doctype", "Salary Structure Assignment");
             assignmentPayload.put("employee", salarySlip.getEmployeeId());
             assignmentPayload.put("salary_structure", salarySlip.getSalaryStructure());
-            // Use a fixed from_date to cover all periods in the CSV
-            assignmentPayload.put("from_date", "2025-03-01"); // Hardcoded to earliest date in CSV
+            
+            // Calculer la date de début de la période du bulletin (premier jour du mois)
+            String payrollDate = utilService.formatDate(utilService.getFormattedDate(salarySlip.getMonth()), "yyyy-MM-dd");
+            assignmentPayload.put("from_date", payrollDate);
+            
+            // Calculer la date de fin (dernier jour du mois)
+            String toDate = utilService.getEndOfMonth(salarySlip.getMonth(), "yyyy-MM-dd");
+            assignmentPayload.put("to_date", toDate);
+            
+            // Définir le salaire de base
             assignmentPayload.put("base", Double.parseDouble(salarySlip.getBaseSalary()));
-            // Fetch company dynamically to avoid hardcoding
+            
+            // Récupérer la compagnie
             String company = getEmployeeCompany(salarySlip.getEmployeeId(), sid);
             if (company == null) {
                 results.add(String.format("Line %d: Failed to fetch company for employee %s", lineNumber, salarySlip.getEmployeeId()));
@@ -559,11 +572,19 @@ public class ImportService {
             }
             assignmentPayload.put("company", company);
 
-            // Log the payload for debugging
             logger.info("Line {}: Creating Salary Structure Assignment for employee {} with payload: {}", 
                         lineNumber, salarySlip.getEmployeeId(), assignmentPayload);
 
-            // Create the Salary Structure Assignment
+            // Vérifier si une affectation existe déjà pour la période exacte et le salaire de base
+            if (checkSalaryStructureAssignmentExists(salarySlip.getEmployeeId(), salarySlip.getSalaryStructure(), payrollDate, Double.parseDouble(salarySlip.getBaseSalary()), sid)) {
+                results.add(String.format("Line %d: Salary Structure Assignment already exists for employee %s, period %s", 
+                                        lineNumber, salarySlip.getEmployeeId(), payrollDate));
+                logger.info("Line {}: Salary Structure Assignment already exists for employee {}, period {}", 
+                            lineNumber, salarySlip.getEmployeeId(), payrollDate);
+                return true; // L'affectation existe déjà, pas besoin de la recréer
+            }
+
+            // Créer l'affectation
             ResponseEntity<Map> response = erpNextApiService.postResource("Salary Structure Assignment", assignmentPayload, sid);
             if (response.getStatusCode().is2xxSuccessful()) {
                 String assignmentName = (String) ((Map) response.getBody().get("data")).get("name");
@@ -572,7 +593,7 @@ public class ImportService {
                 logger.info("Line {}: Salary Structure Assignment {} created for employee {}", 
                             lineNumber, assignmentName, salarySlip.getEmployeeId());
 
-                // Submit the Salary Structure Assignment
+                // Soumettre l'affectation
                 ResponseEntity<Map> submitResponse = erpNextApiService.submitResource("Salary Structure Assignment", assignmentName, sid);
                 if (submitResponse.getStatusCode().is2xxSuccessful()) {
                     results.add(String.format("Line %d: Salary Structure Assignment %s submitted for employee %s", 

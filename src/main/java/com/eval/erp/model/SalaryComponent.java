@@ -132,7 +132,7 @@ public class SalaryComponent {
         List<Map<String, String>> accounts = new ArrayList<>();
         Map<String, String> account = new HashMap<>();
         account.put("company", company);
-        account.put("account", "Cash - " + company.substring(0, Math.min(3, company.length())).toUpperCase());
+        account.put("account", "Cash - I");
         accounts.add(account);
         map.put("accounts", accounts);
         return map;
