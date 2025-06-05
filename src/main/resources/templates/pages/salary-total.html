@@ -14,10 +14,9 @@
         .frappe-table { width: 100%; border-collapse: collapse; }
         .frappe-table th, .frappe-table td { padding: 8px; border: 1px solid #dee2e6; text-align: right; }
         .frappe-table th { background-color: #f8f9fa; }
-        .frappe-table th:first-child, .frappe-table td:first-child { text-align: left; }
+        .frappe-table th:first-child,  .frappe-table td:first-child{ text-align: left; }
         .frappe-table th:nth-child(2), .frappe-table td:nth-child(2) { text-align: left; }
         .no-result { font-style: italic; text-align: center; }
-        .total-row { font-weight: bold; background-color: #f8f9fa; }
         .details-table { margin-top: 10px; }
         .details-table th, .details-table td { padding: 6px; }
         @media print {
@@ -84,28 +83,27 @@
                     <thead>
                         <tr>
                             <th>Month</th>
-                            <th>Year</th>
-                            <th>Basic Salary</th>
+                            <th>Gross Salary</th>
                             <th>Deductions</th>
                             <th>Net Salary</th>
                             <th>Details</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr th:each="total : ${salaryTotals}">
-                            <td th:text="${total.month}"></td>
-                            <td th:text="${total.year}"></td>
+                        <tr th:each="total, totalStat : ${salaryTotals}">
+                            <td th:text="${total.month + ' ' + total.year}"></td>
                             <td th:text="${#numbers.formatDecimal(total.totalGrossPay, 0, 'COMMA', 2, 'POINT')}"></td>
                             <td th:text="${#numbers.formatDecimal(total.totalDeductions, 0, 'COMMA', 2, 'POINT')}"></td>
                             <td th:text="${#numbers.formatDecimal(total.totalNetPay, 0, 'COMMA', 2, 'POINT')}"></td>
                             <td>
                                 <button class="btn btn-link" 
                                         data-bs-toggle="collapse" 
-                                        th:attr="data-bs-target='#details-${total.month}-${total.year}'">
+                                        th:attr="data-bs-target='#details-' + ${totalStat.index}">
                                     <i class="fas fa-info-circle"></i> Details
                                 </button>
                                 <div class="collapse details-table" 
-                                     th:id="'details-' + ${total.month} + '-' + ${total.year}">
+                                     th:id="'details-' + ${totalStat.index}">
+                                    <!-- Earnings Components -->
                                     <table class="table table-sm">
                                         <thead>
                                             <tr>
@@ -122,6 +120,7 @@
                                             </tr>
                                         </tbody>
                                     </table>
+                                    <!-- Deductions Components -->
                                     <table class="table table-sm">
                                         <thead>
                                             <tr>

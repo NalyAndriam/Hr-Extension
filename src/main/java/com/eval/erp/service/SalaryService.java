@@ -238,7 +238,7 @@ public class SalaryService {
 
     public List<SalaryTotal> getSalaryTotalsByYear(String year, String sid) throws Exception {
         try {
-            String fields = "[\"*\"]";
+            String fields = "[\"name\"]"; // Fetch only the name field initially to get IDs
             String filters = "[]";
             if (year != null && !year.isEmpty()) {
                 String startDate = year + "-01-01";
@@ -253,7 +253,19 @@ public class SalaryService {
             }
 
             List<Map<String, Object>> salaryData = (List<Map<String, Object>>) response.getBody().get("data");
-            List<Salary> salaries = convertIntoSalaries(salaryData);
+            List<Salary> salaries = new ArrayList<>();
+
+            // Fetch detailed payslip data for each salary slip
+            for (Map<String, Object> data : salaryData) {
+                String payslipId = (String) data.get("name");
+                try {
+                    Salary payslip = getPayslipById(payslipId, sid);
+                    salaries.add(payslip);
+                } catch (Exception e) {
+                    logger.error("Error fetching details for payslip {}: {}", payslipId, e.getMessage());
+                    continue; // Continue to next payslip if one fails
+                }
+            }
 
             // Group salaries by month and year
             Map<String, List<Salary>> salariesByMonth = salaries.stream()
@@ -275,37 +287,46 @@ public class SalaryService {
                 double totalGrossPay = 0.0;
                 double totalDeductions = 0.0;
                 double totalNetPay = 0.0;
-                Map<String, Double> earningsDetails = new HashMap<>();
-                Map<String, Double> deductionsDetails = new HashMap<>();
+                Map<String, Double> componentTotals = new HashMap<>(); // Map pour les totaux par composante
 
                 for (Salary salary : monthSalaries) {
+                    // Calcul des totaux généraux
                     if (salary.getGrossPay() != null) totalGrossPay += salary.getGrossPay();
                     if (salary.getTotalDeduction() != null) totalDeductions += salary.getTotalDeduction();
                     if (salary.getNetPay() != null) totalNetPay += salary.getNetPay();
 
+                    // Agrégation des composantes (earnings)
                     if (salary.getEarnings() != null) {
                         for (Component earning : salary.getEarnings()) {
                             if (earning.getDescription() != null && earning.getAmount() != null) {
-                                earningsDetails.merge(earning.getDescription(), earning.getAmount(), Double::sum);
+                                componentTotals.merge(
+                                    "Earning: " + earning.getDescription(),
+                                    earning.getAmount(),
+                                    Double::sum
+                                );
                             }
                         }
                     }
+
+                    // Agrégation des composantes (deductions)
                     if (salary.getDeductions() != null) {
                         for (Component deduction : salary.getDeductions()) {
                             if (deduction.getDescription() != null && deduction.getAmount() != null) {
-                                deductionsDetails.merge(deduction.getDescription(), deduction.getAmount(), Double::sum);
+                                componentTotals.merge(
+                                    "Deduction: " + deduction.getDescription(),
+                                    deduction.getAmount(),
+                                    Double::sum
+                                );
                             }
                         }
                     }
                 }
 
-                logger.info("Totals for {} {}: GrossPay={}, Deductions={}, NetPay={}", 
-                            month, yearNum, totalGrossPay, totalDeductions, totalNetPay);
-                logger.info("Earnings Details: {}", earningsDetails);
-                logger.info("Deductions Details: {}", deductionsDetails);
+                logger.info("Totals for {} {}: GrossPay={}, Deductions={}, NetPay={}, ComponentTotals={}, Salaries={}", 
+                            month, yearNum, totalGrossPay, totalDeductions, totalNetPay, componentTotals, monthSalaries.size());
 
-                SalaryTotal salaryTotal = new SalaryTotal(month, yearNum, totalGrossPay, totalDeductions,
-                        totalNetPay, earningsDetails, deductionsDetails);
+                // Créer un SalaryTotal avec les totaux des composantes
+                SalaryTotal salaryTotal = new SalaryTotal(month, yearNum, totalGrossPay, totalDeductions, totalNetPay, monthSalaries, componentTotals);
                 salaryTotals.add(salaryTotal);
             }
 
