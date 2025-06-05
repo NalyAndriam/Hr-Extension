@@ -1,6 +1,7 @@
 package com.eval.erp.model;
 
 import java.util.Date;
+import java.util.List;
 
 public class Salary {
     private String name; // Salary Slip ID
@@ -23,6 +24,26 @@ public class Salary {
     private Double totalWorkingDays; // Total working days
     private Double paymentDays; // Payment days
     private String currency; // Currency
+
+    private List<Component> earnings;
+    private List<Component> deductions;
+
+    public List<Component> getEarnings() {
+        return earnings;
+    }
+
+    public void setEarnings(List<Component> earnings) {
+        this.earnings = earnings;
+    }
+
+
+    public List<Component> getDeductions() {
+        return deductions;
+    }
+
+    public void setDeductions(List<Component> deductions) {
+        this.deductions = deductions;
+    }
 
     // Getters and Setters
     public String getName() {

@@ -31,6 +31,12 @@ public class ErpNextApiService {
         return executeGetRequest(url, sid);
     }
 
+    // New getResourceById method (for direct ID-based fetching)
+    public ResponseEntity<Map> getResourceById(String resourcePath, String sid) {
+        String url = erpNextApiUrl + "/api/resource/" + resourcePath;
+        return executeGetRequest(url, sid);
+    }
+
     public ResponseEntity<Map> updateResource(String resourceType, String id, Map<String, Object> data, String sid) {
         String url = erpNextApiUrl + "/api/resource/" + resourceType + "/" + id;
         return executePutRequest(url, data, sid);

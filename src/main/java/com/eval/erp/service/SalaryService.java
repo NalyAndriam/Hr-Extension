@@ -1,5 +1,6 @@
 package com.eval.erp.service;
 
+import com.eval.erp.model.Component;
 import com.eval.erp.model.Salary;
 import com.eval.erp.model.SalarySummary;
 
@@ -9,6 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -56,6 +59,30 @@ public class SalaryService {
             salary.setPaymentDays(data.get("payment_days") != null ? ((Number) data.get("payment_days")).doubleValue() : null);
             salary.setCurrency((String) data.get("currency"));
 
+            if (data.get("earnings") != null) {
+                List<Map<String, Object>> earningsData = (List<Map<String, Object>>) data.get("earnings");
+                List<Component> earnings = new ArrayList<>();
+                for (Map<String, Object> earning : earningsData) {
+                    Component component = new Component();
+                    component.setDescription((String) earning.get("salary_component"));
+                    component.setAmount(earning.get("amount") != null ? ((Number) earning.get("amount")).doubleValue() : null);
+                    earnings.add(component);
+                }
+                salary.setEarnings(earnings);
+            }
+
+            if (data.get("deductions") != null) {
+                List<Map<String, Object>> deductionsData = (List<Map<String, Object>>) data.get("deductions");
+                List<Component> deductions = new ArrayList<>();
+                for (Map<String, Object> deduction : deductionsData) {
+                    Component component = new Component();
+                    component.setDescription((String) deduction.get("salary_component"));
+                    component.setAmount(deduction.get("amount") != null ? ((Number) deduction.get("amount")).doubleValue() : null);
+                    deductions.add(component);
+                }
+                salary.setDeductions(deductions);
+            }
+
             String postingDateStr = (String) data.get("posting_date");
             String startDateStr = (String) data.get("start_date");
             String endDateStr = (String) data.get("end_date");
@@ -102,29 +129,44 @@ public class SalaryService {
                 }
             }
 
-            logger.info("Salary Details: Name={}, Employee={}, EmployeeName={}, Month={}, Year={}, GrossPay={}, NetPay={}, Status={}, TotalDeduction={}, PayrollFrequency={}, TotalInWords={}", startDateStr, endDateStr, postingDateStr,
+            logger.info("Salary Details: Name={}, Employee={}, EmployeeName={}, Month={}, Year={}, GrossPay={}, NetPay={}, Status={}, TotalDeduction={}, PayrollFrequency={}, TotalInWords={}",
                     salary.getName(), salary.getEmployee(), salary.getEmployeeName(), salary.getMonth(),
                     salary.getYear(), salary.getGrossPay(), salary.getNetPay(), salary.getStatus(),
                     salary.getTotalDeduction(), salary.getPayrollFrequency(), salary.getTotalInWords());
-                    salaries.add(salary);
+            salaries.add(salary);
         }
         return salaries;
     }
 
     public Salary getPayslipById(String payslipId, String sid) throws Exception {
         try {
-            String fields = "[\"*\"]";
-            String filters = "[[\"name\",\"=\",\"" + payslipId + "\"]]";
-            ResponseEntity<Map> response = erpNextApiService.getResource("Salary Slip", fields, filters, sid);
+            // URL-encode the payslip ID to handle spaces and special characters
+            //String encodedPayslipId = URLEncoder.encode(payslipId, StandardCharsets.UTF_8.toString());
+            // Construct the resource path with the payslip ID
+            String resourcePath = "Salary Slip/" + payslipId;
+
+            // Fetch the resource directly by ID (no fields or filters)
+            ResponseEntity<Map> response = erpNextApiService.getResourceById(resourcePath, sid);
             if (response.getBody() == null || !response.getBody().containsKey("data")) {
-                logger.error("Invalid response from payroll: {}", payslipId);
+                logger.error("Invalid response from payroll for payslip: {}", payslipId);
                 throw new Exception("Invalid response from payroll API");
             }
-            List<Map<String, Object>> salaryData = (List<Map<String, Object>>) response.getBody().get("data");
-            if (salaryData.isEmpty()) {
+
+            // The response contains a single object under "data"
+            Map<String, Object> salaryData = (Map<String, Object>) response.getBody().get("data");
+            logger.info("Salary data fetched for payslip {}: {}", payslipId, salaryData);
+
+            // Convert the single object to a list for compatibility with convertIntoSalaries
+            List<Map<String, Object>> salaryDataList = List.of(salaryData);
+            List<Salary> salaries = convertIntoSalaries(salaryDataList);
+            if (salaries.isEmpty()) {
                 throw new Exception("Payslip not found: " + payslipId);
             }
-            return convertIntoSalaries(salaryData).get(0);
+
+            Salary payslip = salaries.get(0);
+            logger.info("Payslip parsed: {}, Earnings: {}, Deductions: {}", 
+                        payslip.getName(), payslip.getEarnings(), payslip.getDeductions());
+            return payslip;
         } catch (Exception e) {
             logger.error("Error retrieving payslip {}: {}", payslipId, e.getMessage(), e);
             throw new Exception("Error retrieving payslip: " + e.getMessage());

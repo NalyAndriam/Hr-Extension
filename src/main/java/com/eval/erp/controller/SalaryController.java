@@ -48,7 +48,7 @@ public class SalaryController {
             String sid = (String) session.getAttribute("erp_sid");
             if (sid == null) {
                 logger.warn("ERPNext session not found for payslip {}. Session sid: null", payslipId);
-                model.addAttribute("error", "ERPNext session not found. Please reconnect.");
+                model.addAttribute("error", "Session ERPNext non trouvée. Veuillez vous reconnecter.");
                 return "pages/fiche-details";
             }
             logger.info("Session sid for payslip {}: {}", payslipId, sid);
