@@ -175,81 +175,87 @@ public class ImportService {
 
 //-------------------------------------------------------SALARY STRUCTURE------------------------------------------------------------------
 
-    public SalaryStructure importSalaryStructure(MultipartFile file, String sid) throws Exception {
-        logger.info("Processing CSV file: {}, size: {} bytes", file.getOriginalFilename(), file.getSize());
+    public List<SalaryStructure> importSalaryStructure(MultipartFile file, String sid) throws Exception {
+    logger.info("Processing CSV file: {}, size: {} bytes", file.getOriginalFilename(), file.getSize());
 
-        List<SalaryComponent> components = new ArrayList<>();
-        String salaryStructureName = null;
-        String company = null;
+    // Map pour regrouper les composants par structure salariale et société
+    Map<String, List<SalaryComponent>> structureComponentsMap = new HashMap<>();
+    Map<String, String> structureCompanyMap = new HashMap<>();
+    List<SalaryStructure> summaries = new ArrayList<>();
 
-        try (BufferedReader reader = new BufferedReader(
-                new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
-            String headerLine = reader.readLine();
-            if (headerLine == null || !headerLine.trim().toLowerCase().startsWith("salary structure,name,abbr,type,valeur,company")) { // Changement ici
-                throw new IllegalArgumentException("Invalid CSV header. Expected: salary structure,name,abbr,type,valeur,company");
-            }
-            logger.info("CSV header: {}", headerLine);
+    try (BufferedReader reader = new BufferedReader(
+            new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+        String headerLine = reader.readLine();
+        if (headerLine == null || !headerLine.trim().toLowerCase().startsWith("salary structure,name,abbr,type,valeur,company")) {
+            throw new IllegalArgumentException("Invalid CSV header. Expected: salary structure,name,abbr,type,valeur,company");
+        }
+        logger.info("CSV header: {}", headerLine);
 
-            String line;
-            int lineNumber = 1;
-            while ((line = reader.readLine()) != null) {
-                lineNumber++;
-                try {
-                    if (line.trim().isEmpty()) {
-                        logger.info("Line {}: Skipped empty line", lineNumber);
-                        continue;
-                    }
-
-                    String[] fields = line.split(",");
-                    if (fields.length < 6) {
-                        logger.error("Line {}: Invalid number of fields, expected 6, found {}", lineNumber, fields.length);
-                        continue;
-                    }
-
-                    SalaryComponent component = new SalaryComponent();
-                    component.setSalaryStructure(fields[0].trim());
-                    component.setName(fields[1].trim());
-                    component.setSalaryComponentAbbr(fields[2].trim()); // Changement ici
-                    component.setType(fields[3].trim());
-                    component.setValeur(fields[4].trim());
-                    component.setCompany(fields[5].trim());
-
-                    logger.info("Line {}: Raw component data - Structure: {}, Name: {}, SalaryComponentAbbr: {}, Type: {}, Valeur: {}, Company: {}", // Changement ici
-                            lineNumber, component.getSalaryStructure(), component.getName(), component.getSalaryComponentAbbr(),
-                            component.getType(), component.getValeur(), component.getCompany());
-
-                    component.validate();
-                    components.add(component);
-
-                    if (salaryStructureName == null) {
-                        salaryStructureName = component.getSalaryStructure();
-                        company = component.getCompany();
-                    } else if (!salaryStructureName.equals(component.getSalaryStructure()) || !company.equals(component.getCompany())) {
-                        throw new IllegalArgumentException("Toutes les lignes doivent avoir la même structure salariale et la même société.");
-                    }
-                } catch (IllegalArgumentException e) {
-                    logger.error("Validation error on line {}: {}", lineNumber, e.getMessage());
-                } catch (Exception e) {
-                    logger.error("Error processing line {}: {}", lineNumber, e.getMessage(), e);
+        String line;
+        int lineNumber = 1;
+        while ((line = reader.readLine()) != null) {
+            lineNumber++;
+            try {
+                if (line.trim().isEmpty()) {
+                    logger.info("Line {}: Skipped empty line", lineNumber);
+                    continue;
                 }
+
+                String[] fields = line.split(",");
+                if (fields.length < 6) {
+                    logger.error("Line {}: Invalid number of fields, expected 6, found {}", lineNumber, fields.length);
+                    continue;
+                }
+
+                SalaryComponent component = new SalaryComponent();
+                component.setSalaryStructure(fields[0].trim());
+                component.setName(fields[1].trim());
+                component.setSalaryComponentAbbr(fields[2].trim());
+                component.setType(fields[3].trim());
+                component.setValeur(fields[4].trim());
+                component.setCompany(fields[5].trim());
+
+                logger.info("Line {}: Raw component data - Structure: {}, Name: {}, SalaryComponentAbbr: {}, Type: {}, Valeur: {}, Company: {}",
+                        lineNumber, component.getSalaryStructure(), component.getName(), component.getSalaryComponentAbbr(),
+                        component.getType(), component.getValeur(), component.getCompany());
+
+                component.validate();
+
+                // Ajouter le composant au groupe correspondant
+                String key = component.getSalaryStructure() + "_" + component.getCompany();
+                structureComponentsMap.computeIfAbsent(key, k -> new ArrayList<>()).add(component);
+                structureCompanyMap.putIfAbsent(key, component.getCompany());
+
+            } catch (IllegalArgumentException e) {
+                logger.error("Validation error on line {}: {}", lineNumber, e.getMessage());
+            } catch (Exception e) {
+                logger.error("Error processing line {}: {}", lineNumber, e.getMessage(), e);
             }
-        } catch (IllegalArgumentException e) {
-            logger.error("CSV header error: {}", e.getMessage());
-            throw new Exception("Erreur d'en-tête CSV : " + e.getMessage());
-        } catch (Exception e) {
-            logger.error("Error reading CSV: {}", e.getMessage());
-            throw new Exception("Erreur lors de la lecture du CSV : " + e.getMessage());
         }
+    } catch (IllegalArgumentException e) {
+        logger.error("CSV header error: {}", e.getMessage());
+        throw new Exception("Erreur d'en-tête CSV : " + e.getMessage());
+    } catch (Exception e) {
+        logger.error("Error reading CSV: {}", e.getMessage());
+        throw new Exception("Erreur lors de la lecture du CSV : " + e.getMessage());
+    }
 
-        if (components.isEmpty()) {
-            throw new Exception("Aucun composant valide trouvé dans le CSV.");
-        }
+    if (structureComponentsMap.isEmpty()) {
+        throw new Exception("Aucun composant valide trouvé dans le CSV.");
+    }
 
+    // Traiter chaque structure salariale
+    for (Map.Entry<String, List<SalaryComponent>> entry : structureComponentsMap.entrySet()) {
+        String[] keyParts = entry.getKey().split("_");
+        String salaryStructureName = keyParts[0];
+        String company = structureCompanyMap.get(entry.getKey());
+        List<SalaryComponent> components = entry.getValue();
         SalaryStructure summary = new SalaryStructure(components, salaryStructureName, company);
 
         // Vérifier si la société existe
         if (!companyService.ensureCompanyExists(company, sid, 0, summary.getResults())) {
-            return summary;
+            summaries.add(summary);
+            continue;
         }
 
         // Étape 1 : Créer ou mettre à jour les Salary Components
@@ -257,29 +263,49 @@ public class ImportService {
             int lineNumber = components.indexOf(component) + 2;
             try {
                 boolean componentExists = checkComponentExists(utilService.normalizeName(component.getName()), sid);
-                ResponseEntity<Map> response;
-                logger.info("Tentative de {} du composant {} (name: {}, salary_component: {})", componentExists ? "mise à jour" : "création", component.getName(), utilService.normalizeName(component.getName()), component.getName());
+                ResponseEntity<Map> response = null;
+                logger.info("Tentative de {} du composant {} (name: {}, salary_component: {})", 
+                            componentExists ? "mise à jour" : "création", 
+                            component.getName(), utilService.normalizeName(component.getName()), component.getName());
+
                 if (componentExists) {
-                    response = erpNextApiService.updateResource("Salary Component", utilService.normalizeName(component.getName()), component.toMap(true), sid);
+                    summary.addResult(String.format("Line %d: Composant %s already exists, using existing component", 
+                                                   lineNumber, component.getName()));
+                    logger.info("Line {}: Composant {} already exists, using existing component", 
+                                lineNumber, component.getName());
                 } else {
                     response = erpNextApiService.postResource("Salary Component", component.toMap(false), sid);
-                }
-
-                if (response.getStatusCode().is2xxSuccessful()) {
-                    summary.addResult(String.format("Line %d: Composant %s successfully %s", lineNumber, component.getName(), componentExists ? "updated" : "created"));
-                    logger.info("Line {}: Composant {} successfully {}", lineNumber, component.getName(), componentExists ? "updated" : "created");
-                } else {
-                    String errorMsg = response.getBody() != null ? response.getBody().toString() : "Unknown error";
-                    summary.addResult(String.format("Line %d: Failed to %s composant %s: %s", lineNumber, componentExists ? "update" : "create", component.getName(), errorMsg));
-                    logger.error("Line {}: Failed to {} composant {}: {}", lineNumber, componentExists ? "update" : "create", component.getName(), errorMsg);
+                    if (response.getStatusCode().is2xxSuccessful()) {
+                        summary.addResult(String.format("Line %d: Composant %s successfully created", 
+                                                       lineNumber, component.getName()));
+                        logger.info("Line {}: Composant {} successfully created", 
+                                    lineNumber, component.getName());
+                    } else {
+                        String errorMsg = response.getBody() != null ? response.getBody().toString() : "Unknown error";
+                        summary.addResult(String.format("Line %d: Failed to create composant %s: %s", 
+                                                       lineNumber, component.getName(), errorMsg));
+                        logger.error("Line {}: Failed to create composant {}: {}", 
+                                     lineNumber, component.getName(), errorMsg);
+                    }
                 }
             } catch (HttpClientErrorException e) {
                 String errorMsg = e.getResponseBodyAsString().isEmpty() ? e.getStatusText() : e.getResponseBodyAsString();
-                summary.addResult(String.format("Line %d: API error for composant %s: %s", lineNumber, component.getName(), errorMsg));
-                logger.error("API error on line {} for composant {}: {}", lineNumber, component.getName(), errorMsg);
+                if (errorMsg.contains("DuplicateEntryError")) {
+                    summary.addResult(String.format("Line %d: Composant %s already exists, using existing component", 
+                                                   lineNumber, component.getName()));
+                    logger.info("Line {}: Composant {} already exists, using existing component", 
+                                lineNumber, component.getName());
+                } else {
+                    summary.addResult(String.format("Line %d: API error for composant %s: %s", 
+                                                   lineNumber, component.getName(), errorMsg));
+                    logger.error("API error on line {} for composant {}: {}", 
+                                 lineNumber, component.getName(), errorMsg);
+                }
             } catch (Exception e) {
-                summary.addResult(String.format("Line %d: Error processing composant %s: %s", lineNumber, component.getName(), e.getMessage()));
-                logger.error("Error processing line {} for composant {}: {}", lineNumber, component.getName(), e.getMessage());
+                summary.addResult(String.format("Line %d: Error processing composant %s: %s", 
+                                               lineNumber, component.getName(), e.getMessage()));
+                logger.error("Error processing line {} for composant {}: {}", 
+                             lineNumber, component.getName(), e.getMessage());
             }
         }
 
@@ -300,7 +326,7 @@ public class ImportService {
             for (SalaryComponent component : components) {
                 Map<String, Object> child = new HashMap<>();
                 child.put("salary_component", component.getName());
-                child.put("salary_component_abbr", component.getSalaryComponentAbbr()); // Changement ici
+                child.put("salary_component_abbr", component.getSalaryComponentAbbr());
                 child.put("amount_based_on_formula", true);
                 if (!component.getValeur().equalsIgnoreCase("base")) {
                     child.put("formula", component.getValeur());
@@ -358,8 +384,11 @@ public class ImportService {
             logger.error("Error processing structure {}: {}", salaryStructureName, e.getMessage());
         }
 
-        return summary;
+        summaries.add(summary);
     }
+
+    return summaries;
+}
     
     private boolean checkComponentExists(String componentName, String sid) throws Exception {
         try {

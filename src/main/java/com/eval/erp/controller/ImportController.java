@@ -100,8 +100,10 @@ public class ImportController {
             // Process Salary Structure CSV
             if (salaryStructureCsvFile != null && !salaryStructureCsvFile.isEmpty()) {
                 logger.info("Processing Salary Structure CSV: {}", salaryStructureCsvFile.getOriginalFilename());
-                SalaryStructure salaryStructure = importService.importSalaryStructure(salaryStructureCsvFile, sid);
-                importResults.addAll(salaryStructure.getResults());
+                List<SalaryStructure> salaryStructures = importService.importSalaryStructure(salaryStructureCsvFile, sid);
+                for (SalaryStructure salaryStructure : salaryStructures) {
+                    importResults.addAll(salaryStructure.getResults());
+                }
             }
 
             // Process Salary Slip CSV
