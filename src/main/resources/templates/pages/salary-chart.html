@@ -92,25 +92,14 @@
                 console.log('Parsed chart data:', chartData);
                 console.log('Months:', chartData.months);
                 console.log('Datasets:', chartData.datasets);
-                chartData.datasets.forEach((ds, index) => {
-                    console.log(`Dataset ${index}:`, {
-                        label: ds.label,
-                        data: ds.data,
-                        borderColor: ds.borderColor,
-                        backgroundColor: ds.backgroundColor,
-                        fill: ds.fill,
-                        tension: ds.tension,
-                        hidden: ds.hidden
-                    });
-                });
 
                 const chartTitle = chartData.year && chartData.year !== '' 
-                    ? 'Salary Evolution by Month (' + chartData.year + ')' 
-                    : 'Salary Evolution by Month';
+                    ? 'Salary Totals by Month (' + chartData.year + ')' 
+                    : 'Salary Totals by Month';
 
                 const ctx = document.getElementById('salaryEvolutionChart').getContext('2d');
                 new Chart(ctx, {
-                    type: 'line',
+                    type: 'bar', // Changed to bar chart
                     data: {
                         labels: chartData.months || [],
                         datasets: chartData.datasets || []

@@ -358,11 +358,11 @@ public class SalaryService {
             List<String> months = new ArrayList<>();
             List<Map<String, Object>> datasets = new ArrayList<>();
 
-            // Liste des mois dans l'ordre
+            // List of months in order
             SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM", Locale.ENGLISH);
             List<String> monthOrder = Arrays.asList(monthFormat.getDateFormatSymbols().getMonths());
 
-            // Récupérer toutes les composantes uniques
+            // Get all unique components
             Set<String> allComponents = new TreeSet<>();
             for (SalaryTotal total : salaryTotals) {
                 if (total.getComponentTotals() != null) {
@@ -370,24 +370,23 @@ public class SalaryService {
                 }
             }
 
-            // Préparer les données pour chaque mois
+            // Initialize data lists for each month
             List<Double> grossPays = new ArrayList<>(Collections.nCopies(12, 0.0));
             List<Double> deductions = new ArrayList<>(Collections.nCopies(12, 0.0));
             List<Double> netPays = new ArrayList<>(Collections.nCopies(12, 0.0));
             Map<String, List<Double>> componentSeries = new HashMap<>();
-
             for (String component : allComponents) {
                 componentSeries.put(component, new ArrayList<>(Collections.nCopies(12, 0.0)));
             }
 
-            // Remplir les données par mois
+            // Populate data for each month
             for (int i = 0; i < 12; i++) {
                 String month = monthOrder.get(i);
                 months.add(month);
 
                 Optional<SalaryTotal> matchingTotal = salaryTotals.stream()
                         .filter(total -> total.getMonth().equals(month) && 
-                                    (year == null || total.getYear().toString().equals(year)))
+                                (year == null || total.getYear().toString().equals(year)))
                         .findFirst();
 
                 if (matchingTotal.isPresent()) {
@@ -403,17 +402,17 @@ public class SalaryService {
                 }
             }
 
-            // Ajouter les datasets principaux
+            // Add main datasets
             datasets.add(createDataset("Gross Salary", grossPays, "#28a745", "rgba(40, 167, 69, 0.2)", false));
             datasets.add(createDataset("Deductions", deductions, "#dc3545", "rgba(220, 53, 69, 0.2)", false));
             datasets.add(createDataset("Net Salary", netPays, "#007bff", "rgba(0, 123, 255, 0.2)", false));
 
-            // Ajouter les datasets pour les composantes
+            // Add datasets for components
             int colorIndex = 0;
             String[] colors = {"#17a2b8", "#ffc107", "#6f42c1", "#fd7e14", "#20c997", "#6610f2"};
             for (String component : allComponents) {
                 String borderColor = colors[colorIndex % colors.length];
-                String backgroundColor = borderColor + "33";
+                String backgroundColor = borderColor + "33"; // Add transparency
                 datasets.add(createDataset(component, componentSeries.get(component), borderColor, backgroundColor, true));
                 colorIndex++;
             }
