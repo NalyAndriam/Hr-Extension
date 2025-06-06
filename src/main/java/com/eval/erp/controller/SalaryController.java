@@ -16,7 +16,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 import jakarta.servlet.http.HttpSession;
 import java.text.SimpleDateFormat;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -83,7 +82,7 @@ public class SalaryController {
                     year = parts[0];
                     int monthNum = Integer.parseInt(parts[1]);
                     month = new SimpleDateFormat("MMMM", Locale.ENGLISH)
-                        .getDateFormatSymbols().getMonths()[monthNum - 1];
+                            .getDateFormatSymbols().getMonths()[monthNum - 1];
                 }
             } catch (Exception e) {
                 logger.warn("Invalid monthYear format: {}", monthYear);
@@ -100,16 +99,13 @@ public class SalaryController {
             }
             logger.info("Session sid for salary list: {}", sid);
 
-            SalarySummary summary = salaryService.getSalariesByMonth(month, year, sid);
-            model.addAttribute("salaries", summary.getSalaries());
-            model.addAttribute("totalGrossPay", summary.getTotalGrossPay());
-            model.addAttribute("totalDeductions", summary.getTotalDeductions());
-            model.addAttribute("totalNetPay", summary.getTotalNetPay());
+            SalarySummary salarySummary = salaryService.getSalarySummaryByMonth(month, year, sid);
+            model.addAttribute("salarySummary", salarySummary);
             model.addAttribute("monthYear", monthYear);
-            logger.info("Fetched {} salaries for month: {}, year: {}", summary.getSalaries().size(), 
-                month != null ? month : "All", year != null ? year : "All");
+            logger.info("Fetched salary summary with {} salaries for month: {}, year: {}", 
+                        salarySummary.getSalaries().size(), month != null ? month : "All", year != null ? year : "All");
         } catch (Exception e) {
-            logger.error("Error fetching salary list for month {}, year {}: {}", month, year, e.getMessage());
+            logger.error("Error fetching salary summary for month {}, year {}: {}", month, year, e.getMessage());
             model.addAttribute("error", e.getMessage());
         }
         return "pages/salary-list";
@@ -121,7 +117,6 @@ public class SalaryController {
         model.addAttribute("username", SecurityContextHolder.getContext().getAuthentication().getName());
         model.addAttribute("activeMenu", "salary-total");
 
-        // List of years for the filter
         List<String> years = IntStream.rangeClosed(2000, java.time.Year.now().getValue())
                 .mapToObj(String::valueOf)
                 .sorted((a, b) -> b.compareTo(a))
@@ -137,11 +132,9 @@ public class SalaryController {
             }
             logger.info("Session sid for salary totals: {}", sid);
 
-            // Fetch salary totals for the table
             List<SalaryTotal> salaryTotals = salaryService.getSalaryTotalsByYear(year, sid);
             model.addAttribute("salaryTotals", salaryTotals);
 
-            // Fetch chart data
             Map<String, Object> chartData = salaryService.getSalaryChartData(year, sid);
             ObjectMapper objectMapper = new ObjectMapper();
             String chartDataJson = objectMapper.writeValueAsString(chartData);

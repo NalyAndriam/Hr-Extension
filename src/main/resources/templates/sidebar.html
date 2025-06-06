@@ -29,37 +29,23 @@
                     <span>Data Import</span>
                 </a>
             </li>
-
-            <!-- Human Resources Section -->
-            <li class="dropdown">
-                <a href="#" class="sidebar-item dropdown-toggle" data-bs-toggle="dropdown">
-                    <i class="fas fa-users sidebar-icon"></i>
-                    <span>Human Resources</span>
+            <li>
+                <a class="dropdown-item" th:href="@{/employee}" th:class="${activeMenu == 'employees' ? 'sidebar-item active' : 'sidebar-item'}">
+                    <i class="fas fa-user sidebar-icon"></i> Employee List
                 </a>
-                <ul class="dropdown-menu">
-                    <li>
-                        <a class="dropdown-item" th:href="@{/employee}" th:class="${activeMenu == 'employees' ? 'sidebar-item active' : 'sidebar-item'}">
-                            <i class="fas fa-user sidebar-icon"></i> Employee List
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" th:href="@{/salaries}" th:class="${activeMenu == 'salaries' ? 'sidebar-item active' : 'sidebar-item'}">
-                            <i class="fas fa-dollar-sign sidebar-icon"></i> Salary Management
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" th:href="@{/salaries/total}" th:class="${activeMenu == 'salary-total' ? 'sidebar-item active' : 'sidebar-item'}">
-                            <i class="fas fa-coins sidebar-icon"></i> Total Payroll
-                        </a>
-                    </li>
-                    <li>
-                        <a class="dropdown-item" th:href="@{/salaries/chart}" th:class="${activeMenu == 'salary-chart' ? 'sidebar-item active' : 'sidebar-item'}">
-                            <i class="fas fa-chart-bar sidebar-icon"></i> Salary Analytics
-                        </a>
-                    </li>
-                </ul>
+            </li>
+            <li>
+                <a class="dropdown-item" th:href="@{/salaries}" th:class="${activeMenu == 'salaries' ? 'sidebar-item active' : 'sidebar-item'}">
+                    <i class="fas fa-dollar-sign sidebar-icon"></i> Salary Management
+                </a>
+            </li>
+            <li>
+                <a class="dropdown-item" th:href="@{/salaries/total}" th:class="${activeMenu == 'salary-total' ? 'sidebar-item active' : 'sidebar-item'}">
+                    <i class="fas fa-chart-bar sidebar-icon"></i> Salary Analytics
+                </a>
             </li>
 
+ 
             <!-- Sales Section (Optional - Uncomment if needed) -->
             <!--
             <li class="dropdown">
@@ -88,56 +74,5 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.1.3/js/bootstrap.bundle.min.js"></script>
 
-<!-- Custom Script for Enhanced Dropdown Behavior -->
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const activeDropdownItems = document.querySelectorAll('.dropdown-item.active');
-        activeDropdownItems.forEach(item => {
-            const parentDropdown = item.closest('.dropdown');
-            if (parentDropdown) {
-                const dropdownToggle = parentDropdown.querySelector('.dropdown-toggle');
-                const dropdownMenu = parentDropdown.querySelector('.dropdown-menu');
-                dropdownToggle.classList.add('show');
-                dropdownMenu.classList.add('show');
-                adjustDropdownPosition(parentDropdown);
-            }
-        });
-
-        const dropdownToggles = document.querySelectorAll('.dropdown-toggle');
-        dropdownToggles.forEach(toggle => {
-            toggle.addEventListener('click', function (e) {
-                e.preventDefault();
-                const menu = this.nextElementSibling;
-                const dropdown = this.closest('.dropdown');
-                this.classList.toggle('show');
-                menu.classList.toggle('show');
-
-                if (menu.classList.contains('show')) {
-                    adjustDropdownPosition(dropdown);
-                }
-
-                dropdownToggles.forEach(otherToggle => {
-                    if (otherToggle !== toggle) {
-                        otherToggle.classList.remove('show');
-                        otherToggle.nextElementSibling.classList.remove('show');
-                    }
-                });
-            });
-        });
-
-        function adjustDropdownPosition(dropdown) {
-            if (!dropdown) return;
-
-            const toggle = dropdown.querySelector('.dropdown-toggle');
-            const menu = dropdown.querySelector('.dropdown-menu');
-
-            if (toggle && menu) {
-                menu.style.position = 'relative';
-                menu.style.top = '0';
-                menu.style.zIndex = '1';
-            }
-        }
-    });
-</script>
 </body>
 </html>

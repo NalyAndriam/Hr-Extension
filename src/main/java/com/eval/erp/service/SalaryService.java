@@ -4,15 +4,11 @@ import com.eval.erp.model.Component;
 import com.eval.erp.model.Salary;
 import com.eval.erp.model.SalarySummary;
 import com.eval.erp.model.SalaryTotal;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalDate;
@@ -153,23 +149,16 @@ public class SalaryService {
 
     public Salary getPayslipById(String payslipId, String sid) throws Exception {
         try {
-            // URL-encode the payslip ID to handle spaces and special characters
-            //String encodedPayslipId = URLEncoder.encode(payslipId, StandardCharsets.UTF_8.toString());
-            // Construct the resource path with the payslip ID
             String resourcePath = "Salary Slip/" + payslipId;
-
-            // Fetch the resource directly by ID (no fields or filters)
             ResponseEntity<Map> response = erpNextApiService.getResourceById(resourcePath, sid);
             if (response.getBody() == null || !response.getBody().containsKey("data")) {
                 logger.error("Invalid response from payroll for payslip: {}", payslipId);
                 throw new Exception("Invalid response from payroll API");
             }
 
-            // The response contains a single object under "data"
             Map<String, Object> salaryData = (Map<String, Object>) response.getBody().get("data");
             logger.info("Salary data fetched for payslip {}: {}", payslipId, salaryData);
 
-            // Convert the single object to a list for compatibility with convertIntoSalaries
             List<Map<String, Object>> salaryDataList = List.of(salaryData);
             List<Salary> salaries = convertIntoSalaries(salaryDataList);
             if (salaries.isEmpty()) {
@@ -186,26 +175,21 @@ public class SalaryService {
         }
     }
 
-
-    public SalarySummary getSalariesByMonth(String month, String year, String sid) throws Exception {
+    public SalarySummary getSalarySummaryByMonth(String month, String year, String sid) throws Exception {
         try {
-            String fields = "[\"*\"]";
-            String filters = "[]";
+            String fields = "[\"name\"]";
+            String filters = "";
             if (month != null && !month.isEmpty() && year != null && !year.isEmpty()) {
-                // Convert month name to number (e.g., "January" -> "01")
                 String monthNum = String.format("%02d", Arrays.asList(
-                    new SimpleDateFormat("MMMM", Locale.ENGLISH).getDateFormatSymbols().getMonths()
-                ).indexOf(month) + 1);
+                        new SimpleDateFormat("MMMM", Locale.ENGLISH).getDateFormatSymbols().getMonths())
+                        .indexOf(month) + 1);
 
-                // Calculate the first and last day of the month
                 String startDate = year + "-" + monthNum + "-01";
                 String endDate = LocalDate.of(Integer.parseInt(year), Integer.parseInt(monthNum), 1)
-                                        .withDayOfMonth(LocalDate.of(Integer.parseInt(year), Integer.parseInt(monthNum), 1)
-                                        .lengthOfMonth())
-                                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                        .withDayOfMonth(LocalDate.of(Integer.parseInt(year), Integer.parseInt(monthNum), 1).lengthOfMonth())
+                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
-                // Use 'between' operator for date range
-                filters = "[[\"posting_date\",\"between\",[\"" + startDate + "\",\"" + endDate + "\"]]]";
+                filters = String.format("[[\"posting_date\",\"between\",[\"%s\", \"%s\"]]]", startDate, endDate);
             }
 
             ResponseEntity<Map> response = erpNextApiService.getResource("Salary Slip", fields, filters, sid);
@@ -215,37 +199,45 @@ public class SalaryService {
             }
 
             List<Map<String, Object>> salaryData = (List<Map<String, Object>>) response.getBody().get("data");
-            List<Salary> salaries = convertIntoSalaries(salaryData);
-
+            List<Salary> salaries = new ArrayList<>();
             double totalGrossPay = 0.0;
             double totalDeductions = 0.0;
             double totalNetPay = 0.0;
 
-            for (Salary salary : salaries) {
-                if (salary.getGrossPay() != null) totalGrossPay += salary.getGrossPay();
-                if (salary.getTotalDeduction() != null) totalDeductions += salary.getTotalDeduction();
-                if (salary.getNetPay() != null) totalNetPay += salary.getNetPay();
+            for (Map<String, Object> data : salaryData) {
+                String payslipId = (String) data.get("name");
+                try {
+                    Salary payslip = getPayslipById(payslipId, sid);
+                    salaries.add(payslip);
+
+                    if (payslip.getGrossPay() != null) totalGrossPay += payslip.getGrossPay();
+                    if (payslip.getTotalDeduction() != null) totalDeductions += payslip.getTotalDeduction();
+                    if (payslip.getNetPay() != null) totalNetPay += payslip.getNetPay();
+                } catch (Exception e) {
+                    logger.error("Error fetching details for payslip {}: {}", payslipId, e.getMessage());
+                    continue;
+                }
             }
 
-            logger.info("Fetched {} salaries for month {}, year {}: grossPay={}, deductions={}, netPay={}",
-                salaries.size(), month != null ? month : "All", year != null ? year : "All", 
-                totalGrossPay, totalDeductions, totalNetPay);
+            logger.info("Fetched {} salaries with totals for month {}, year {}: GrossPay={}, Deductions={}, NetPay={}", 
+                        salaries.size(), month != null ? month : "All", year != null ? year : "All",
+                        totalGrossPay, totalDeductions, totalNetPay);
 
             return new SalarySummary(salaries, totalGrossPay, totalDeductions, totalNetPay);
         } catch (Exception e) {
-            logger.error("Error fetching salaries for month {}, year {}: {}", month, year, e.getMessage(), e);
-            throw new Exception("Error fetching salaries: " + e.getMessage());
+            logger.error("Error fetching salary summary for month {}, year {}: {}", month, year, e.getMessage(), e);
+            throw new Exception("Error fetching salary summary: " + e.getMessage());
         }
     }
 
     public List<SalaryTotal> getSalaryTotalsByYear(String year, String sid) throws Exception {
         try {
-            String fields = "[\"name\"]"; // Fetch only the name field initially to get IDs
-            String filters = "[]";
+            String fields = "[\"name\"]";
+            String filters = "";
             if (year != null && !year.isEmpty()) {
                 String startDate = year + "-01-01";
                 String endDate = year + "-12-31";
-                filters = "[[\"posting_date\",\"between\",[\"" + startDate + "\",\"" + endDate + "\"]]]";
+                filters = String.format("[[\"posting_date\",\"between\",[\"%s\", \"%s\"]]]", startDate, endDate);
             }
 
             ResponseEntity<Map> response = erpNextApiService.getResource("Salary Slip", fields, filters, sid);
@@ -257,7 +249,6 @@ public class SalaryService {
             List<Map<String, Object>> salaryData = (List<Map<String, Object>>) response.getBody().get("data");
             List<Salary> salaries = new ArrayList<>();
 
-            // Fetch detailed payslip data for each salary slip
             for (Map<String, Object> data : salaryData) {
                 String payslipId = (String) data.get("name");
                 try {
@@ -265,11 +256,10 @@ public class SalaryService {
                     salaries.add(payslip);
                 } catch (Exception e) {
                     logger.error("Error fetching details for payslip {}: {}", payslipId, e.getMessage());
-                    continue; // Continue to next payslip if one fails
+                    continue;
                 }
             }
 
-            // Group salaries by month and year
             Map<String, List<Salary>> salariesByMonth = salaries.stream()
                     .filter(s -> s.getMonth() != null && s.getYear() != null)
                     .collect(Collectors.groupingBy(
@@ -289,35 +279,32 @@ public class SalaryService {
                 double totalGrossPay = 0.0;
                 double totalDeductions = 0.0;
                 double totalNetPay = 0.0;
-                Map<String, Double> componentTotals = new HashMap<>(); // Map pour les totaux par composante
+                Map<String, Double> componentTotals = new HashMap<>();
 
                 for (Salary salary : monthSalaries) {
-                    // Calcul des totaux généraux
                     if (salary.getGrossPay() != null) totalGrossPay += salary.getGrossPay();
                     if (salary.getTotalDeduction() != null) totalDeductions += salary.getTotalDeduction();
                     if (salary.getNetPay() != null) totalNetPay += salary.getNetPay();
 
-                    // Agrégation des composantes (earnings)
                     if (salary.getEarnings() != null) {
                         for (Component earning : salary.getEarnings()) {
                             if (earning.getDescription() != null && earning.getAmount() != null) {
                                 componentTotals.merge(
-                                    "Earning: " + earning.getDescription(),
-                                    earning.getAmount(),
-                                    Double::sum
+                                        "Earning: " + earning.getDescription(),
+                                        earning.getAmount(),
+                                        Double::sum
                                 );
                             }
                         }
                     }
 
-                    // Agrégation des composantes (deductions)
                     if (salary.getDeductions() != null) {
                         for (Component deduction : salary.getDeductions()) {
                             if (deduction.getDescription() != null && deduction.getAmount() != null) {
                                 componentTotals.merge(
-                                    "Deduction: " + deduction.getDescription(),
-                                    deduction.getAmount(),
-                                    Double::sum
+                                        "Deduction: " + deduction.getDescription(),
+                                        deduction.getAmount(),
+                                        Double::sum
                                 );
                             }
                         }
@@ -327,12 +314,10 @@ public class SalaryService {
                 logger.info("Totals for {} {}: GrossPay={}, Deductions={}, NetPay={}, ComponentTotals={}, Salaries={}", 
                             month, yearNum, totalGrossPay, totalDeductions, totalNetPay, componentTotals, monthSalaries.size());
 
-                // Créer un SalaryTotal avec les totaux des composantes
                 SalaryTotal salaryTotal = new SalaryTotal(month, yearNum, totalGrossPay, totalDeductions, totalNetPay, monthSalaries, componentTotals);
                 salaryTotals.add(salaryTotal);
             }
 
-            // Sort by year and month order
             salaryTotals.sort((a, b) -> {
                 int yearCompare = a.getYear().compareTo(b.getYear());
                 if (yearCompare != 0) return yearCompare;
@@ -356,11 +341,9 @@ public class SalaryService {
             List<String> months = new ArrayList<>();
             List<Map<String, Object>> datasets = new ArrayList<>();
 
-            // List of months in order
             SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM", Locale.ENGLISH);
             List<String> monthOrder = Arrays.asList(monthFormat.getDateFormatSymbols().getMonths());
 
-            // Get all unique components
             Set<String> allComponents = new TreeSet<>();
             for (SalaryTotal total : salaryTotals) {
                 if (total.getComponentTotals() != null) {
@@ -368,7 +351,6 @@ public class SalaryService {
                 }
             }
 
-            // Initialize data lists for each month
             List<Double> grossPays = new ArrayList<>(Collections.nCopies(12, 0.0));
             List<Double> deductions = new ArrayList<>(Collections.nCopies(12, 0.0));
             List<Double> netPays = new ArrayList<>(Collections.nCopies(12, 0.0));
@@ -377,7 +359,6 @@ public class SalaryService {
                 componentSeries.put(component, new ArrayList<>(Collections.nCopies(12, 0.0)));
             }
 
-            // Populate data for each month
             for (int i = 0; i < 12; i++) {
                 String month = monthOrder.get(i);
                 months.add(month);
@@ -400,17 +381,15 @@ public class SalaryService {
                 }
             }
 
-            // Add main datasets
             datasets.add(createDataset("Gross Salary", grossPays, "#28a745", "rgba(40, 167, 69, 0.2)", false));
             datasets.add(createDataset("Deductions", deductions, "#dc3545", "rgba(220, 53, 69, 0.2)", false));
             datasets.add(createDataset("Net Salary", netPays, "#007bff", "rgba(0, 123, 255, 0.2)", false));
 
-            // Add datasets for components
             int colorIndex = 0;
             String[] colors = {"#17a2b8", "#ffc107", "#6f42c1", "#fd7e14", "#20c997", "#6610f2"};
             for (String component : allComponents) {
                 String borderColor = colors[colorIndex % colors.length];
-                String backgroundColor = borderColor + "33"; // Add transparency
+                String backgroundColor = borderColor + "33";
                 datasets.add(createDataset(component, componentSeries.get(component), borderColor, backgroundColor, true));
                 colorIndex++;
             }
