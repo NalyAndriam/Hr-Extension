@@ -24,6 +24,7 @@
             .main-content { margin-left: 0; padding: 0; }
             .frappe-card { border: none; box-shadow: none; padding: 0; }
         }
+        .total-row { font-weight: bold; background-color: #f8f9fa; }
     </style>
 </head>
 <body>
@@ -132,6 +133,13 @@
                                     </table>
                                 </div>
                             </td>
+                        </tr>
+                        <tr class="total-row">
+                            <td colspan="2">Total</td>
+                            <td th:text="${#numbers.formatDecimal(totalGrossPay, 0, 'COMMA', 2, 'POINT')}"></td>
+                            <td th:text="${#numbers.formatDecimal(totalDeductions, 0, 'COMMA', 2, 'POINT')}"></td>
+                            <td th:text="${#numbers.formatDecimal(totalNetPay, 0, 'COMMA', 2, 'POINT')}"></td>
+                            <td></td>
                         </tr>
                     </tbody>
                 </table>

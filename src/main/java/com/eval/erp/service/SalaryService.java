@@ -187,9 +187,9 @@ public class SalaryService {
     }
 
 
-    public List<Salary> getSalariesByMonth(String month, String year, String sid) throws Exception {
+    public SalarySummary getSalariesByMonth(String month, String year, String sid) throws Exception {
         try {
-            String fields = "[\"name\"]"; // Fetch only the name field initially to get IDs
+            String fields = "[\"*\"]";
             String filters = "[]";
             if (month != null && !month.isEmpty() && year != null && !year.isEmpty()) {
                 // Convert month name to number (e.g., "January" -> "01")
@@ -215,25 +215,23 @@ public class SalaryService {
             }
 
             List<Map<String, Object>> salaryData = (List<Map<String, Object>>) response.getBody().get("data");
-            List<Salary> salaries = new ArrayList<>();
+            List<Salary> salaries = convertIntoSalaries(salaryData);
 
-            // Fetch detailed payslip data for each salary slip
-            for (Map<String, Object> data : salaryData) {
-                String payslipId = (String) data.get("name");
-                try {
-                    Salary payslip = getPayslipById(payslipId, sid);
-                    salaries.add(payslip);
-                } catch (Exception e) {
-                    logger.error("Error fetching details for payslip {}: {}", payslipId, e.getMessage());
-                    // Optionally continue to next payslip instead of failing entirely
-                    continue;
-                }
+            double totalGrossPay = 0.0;
+            double totalDeductions = 0.0;
+            double totalNetPay = 0.0;
+
+            for (Salary salary : salaries) {
+                if (salary.getGrossPay() != null) totalGrossPay += salary.getGrossPay();
+                if (salary.getTotalDeduction() != null) totalDeductions += salary.getTotalDeduction();
+                if (salary.getNetPay() != null) totalNetPay += salary.getNetPay();
             }
 
-            logger.info("Fetched {} salaries with details for month {}, year {}", 
-                        salaries.size(), month != null ? month : "All", year != null ? year : "All");
+            logger.info("Fetched {} salaries for month {}, year {}: grossPay={}, deductions={}, netPay={}",
+                salaries.size(), month != null ? month : "All", year != null ? year : "All", 
+                totalGrossPay, totalDeductions, totalNetPay);
 
-            return salaries;
+            return new SalarySummary(salaries, totalGrossPay, totalDeductions, totalNetPay);
         } catch (Exception e) {
             logger.error("Error fetching salaries for month {}, year {}: {}", month, year, e.getMessage(), e);
             throw new Exception("Error fetching salaries: " + e.getMessage());

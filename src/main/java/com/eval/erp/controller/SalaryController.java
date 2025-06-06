@@ -1,6 +1,7 @@
 package com.eval.erp.controller;
 
 import com.eval.erp.model.Salary;
+import com.eval.erp.model.SalarySummary;
 import com.eval.erp.model.SalaryTotal;
 import com.eval.erp.service.SalaryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -82,7 +83,7 @@ public class SalaryController {
                     year = parts[0];
                     int monthNum = Integer.parseInt(parts[1]);
                     month = new SimpleDateFormat("MMMM", Locale.ENGLISH)
-                            .getDateFormatSymbols().getMonths()[monthNum - 1];
+                        .getDateFormatSymbols().getMonths()[monthNum - 1];
                 }
             } catch (Exception e) {
                 logger.warn("Invalid monthYear format: {}", monthYear);
@@ -99,11 +100,14 @@ public class SalaryController {
             }
             logger.info("Session sid for salary list: {}", sid);
 
-            List<Salary> salaries = salaryService.getSalariesByMonth(month, year, sid);
-            model.addAttribute("salaries", salaries);
+            SalarySummary summary = salaryService.getSalariesByMonth(month, year, sid);
+            model.addAttribute("salaries", summary.getSalaries());
+            model.addAttribute("totalGrossPay", summary.getTotalGrossPay());
+            model.addAttribute("totalDeductions", summary.getTotalDeductions());
+            model.addAttribute("totalNetPay", summary.getTotalNetPay());
             model.addAttribute("monthYear", monthYear);
-            logger.info("Fetched {} salaries for month: {}, year: {}", salaries.size(), 
-                        month != null ? month : "All", year != null ? year : "All");
+            logger.info("Fetched {} salaries for month: {}, year: {}", summary.getSalaries().size(), 
+                month != null ? month : "All", year != null ? year : "All");
         } catch (Exception e) {
             logger.error("Error fetching salary list for month {}, year {}: {}", month, year, e.getMessage());
             model.addAttribute("error", e.getMessage());
