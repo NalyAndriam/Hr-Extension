@@ -20,11 +20,15 @@ import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.time.ZoneId;
 
@@ -345,5 +349,97 @@ public class SalaryService {
             logger.error("Error fetching salary totals for year {}: {}", year, e.getMessage(), e);
             throw new Exception("Error fetching salary totals: " + e.getMessage());
         }
+    }
+
+    public Map<String, Object> getSalaryChartData(String year, String sid) throws Exception {
+        try {
+            List<SalaryTotal> salaryTotals = getSalaryTotalsByYear(year, sid);
+            Map<String, Object> chartData = new HashMap<>();
+            List<String> months = new ArrayList<>();
+            List<Map<String, Object>> datasets = new ArrayList<>();
+
+            // Liste des mois dans l'ordre
+            SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM", Locale.ENGLISH);
+            List<String> monthOrder = Arrays.asList(monthFormat.getDateFormatSymbols().getMonths());
+
+            // Récupérer toutes les composantes uniques
+            Set<String> allComponents = new TreeSet<>();
+            for (SalaryTotal total : salaryTotals) {
+                if (total.getComponentTotals() != null) {
+                    allComponents.addAll(total.getComponentTotals().keySet());
+                }
+            }
+
+            // Préparer les données pour chaque mois
+            List<Double> grossPays = new ArrayList<>(Collections.nCopies(12, 0.0));
+            List<Double> deductions = new ArrayList<>(Collections.nCopies(12, 0.0));
+            List<Double> netPays = new ArrayList<>(Collections.nCopies(12, 0.0));
+            Map<String, List<Double>> componentSeries = new HashMap<>();
+
+            for (String component : allComponents) {
+                componentSeries.put(component, new ArrayList<>(Collections.nCopies(12, 0.0)));
+            }
+
+            // Remplir les données par mois
+            for (int i = 0; i < 12; i++) {
+                String month = monthOrder.get(i);
+                months.add(month);
+
+                Optional<SalaryTotal> matchingTotal = salaryTotals.stream()
+                        .filter(total -> total.getMonth().equals(month) && 
+                                    (year == null || total.getYear().toString().equals(year)))
+                        .findFirst();
+
+                if (matchingTotal.isPresent()) {
+                    SalaryTotal total = matchingTotal.get();
+                    grossPays.set(i, total.getTotalGrossPay());
+                    deductions.set(i, total.getTotalDeductions());
+                    netPays.set(i, total.getTotalNetPay());
+
+                    for (String component : allComponents) {
+                        Double amount = total.getComponentTotals().getOrDefault(component, 0.0);
+                        componentSeries.get(component).set(i, amount);
+                    }
+                }
+            }
+
+            // Ajouter les datasets principaux
+            datasets.add(createDataset("Gross Salary", grossPays, "#28a745", "rgba(40, 167, 69, 0.2)", false));
+            datasets.add(createDataset("Deductions", deductions, "#dc3545", "rgba(220, 53, 69, 0.2)", false));
+            datasets.add(createDataset("Net Salary", netPays, "#007bff", "rgba(0, 123, 255, 0.2)", false));
+
+            // Ajouter les datasets pour les composantes
+            int colorIndex = 0;
+            String[] colors = {"#17a2b8", "#ffc107", "#6f42c1", "#fd7e14", "#20c997", "#6610f2"};
+            for (String component : allComponents) {
+                String borderColor = colors[colorIndex % colors.length];
+                String backgroundColor = borderColor + "33";
+                datasets.add(createDataset(component, componentSeries.get(component), borderColor, backgroundColor, true));
+                colorIndex++;
+            }
+
+            chartData.put("months", months);
+            chartData.put("datasets", datasets);
+            chartData.put("year", year != null && !year.isEmpty() ? year : "");
+
+            logger.info("Chart data: months={}, datasets={}, year={}", months, datasets, year);
+            return chartData;
+        } catch (Exception e) {
+            logger.error("Error preparing chart data for year {}: {}", year, e.getMessage(), e);
+            throw new Exception("Error preparing chart data: " + e.getMessage());
+        }
+    }
+
+    private Map<String, Object> createDataset(String label, List<Double> data, String borderColor, String backgroundColor, boolean hidden) {
+        Map<String, Object> dataset = new HashMap<>();
+        dataset.put("label", label);
+        dataset.put("data", data);
+        dataset.put("borderColor", borderColor);
+        dataset.put("backgroundColor", backgroundColor);
+        dataset.put("fill", false);
+        dataset.put("tension", 0.1);
+        dataset.put("hidden", hidden);
+        logger.info("Created dataset: label={}, data={}", label, data);
+        return dataset;
     }
 }

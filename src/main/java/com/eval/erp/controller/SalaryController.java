@@ -4,6 +4,8 @@ import com.eval.erp.model.Salary;
 import com.eval.erp.model.SalarySummary;
 import com.eval.erp.model.SalaryTotal;
 import com.eval.erp.service.SalaryService;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -147,6 +149,42 @@ public class SalaryController {
             model.addAttribute("error", e.getMessage());
         }
         return "pages/salary-total";
+    }
+
+    @GetMapping("/salaries/chart")
+    public String getSalaryChart(@RequestParam(required = false) String year, Model model) {
+        logger.info("Accessing salary chart for year: {}", year);
+        model.addAttribute("username", SecurityContextHolder.getContext().getAuthentication().getName());
+        model.addAttribute("activeMenu", "salary-chart");
+
+        List<String> years = IntStream.rangeClosed(2000, java.time.Year.now().getValue())
+                .mapToObj(String::valueOf)
+                .sorted((a, b) -> b.compareTo(a))
+                .collect(Collectors.toList());
+        model.addAttribute("years", years);
+
+        try {
+            String sid = (String) session.getAttribute("erp_sid");
+            if (sid == null) {
+                logger.warn("ERPNext session not found for salary chart. Session sid: null");
+                model.addAttribute("error", "ERPNext session not found. Please reconnect.");
+                return "pages/salary-chart";
+            }
+            logger.info("Session sid for salary chart: {}", sid);
+
+            Map<String, Object> chartData = salaryService.getSalaryChartData(year, sid);
+            // Serialize chartData to JSON
+            ObjectMapper objectMapper = new ObjectMapper();
+            String chartDataJson = objectMapper.writeValueAsString(chartData);
+            model.addAttribute("chartDataJson", chartDataJson); // Pass JSON string
+            model.addAttribute("chartData", chartData); // Keep for Thymeleaf conditions
+            model.addAttribute("year", year);
+            logger.info("Prepared chart data for year: {}", year != null ? year : "All");
+        } catch (Exception e) {
+            logger.error("Error fetching salary chart data for year {}: {}", year, e.getMessage());
+            model.addAttribute("error", e.getMessage());
+        }
+        return "pages/salary-chart";
     }
 
 }
