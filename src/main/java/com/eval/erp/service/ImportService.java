@@ -457,7 +457,8 @@ public class ImportService {
                         continue;
                     }
 
-                    String[] fields = line.split(",");
+                    // Parser la ligne CSV en gérant les guillemets
+                    String[] fields = parseCsvLine(line);
                     if (fields.length < 4) {
                         results.add(String.format("Line %d: Invalid number of fields, expected 4, found %d", lineNumber, fields.length));
                         logger.error("Line {}: Invalid number of fields, expected 4, found {}", lineNumber, fields.length);
@@ -471,7 +472,7 @@ public class ImportService {
                     String ref = fields[1].trim();
                     String employeeId = refToNameMap.getOrDefault(ref, ref); // Map Ref to ERPNext name
                     salarySlip.setEmployeeId(employeeId);
-                    salarySlip.setBaseSalary(fields[2].trim());
+                    salarySlip.setBaseSalary(fields[2].trim()); // Le setter gère déjà les formats décimaux
                     salarySlip.setSalaryStructure(fields[3].trim());
 
                     logger.info("Line {}: Raw Salary Slip data - Month: {}, Employee Ref: {}, ERPNext ID: {}, Base Salary: {}, Salary Structure: {}",
@@ -497,7 +498,7 @@ public class ImportService {
 
                     // Vérifier et créer une Salary Structure Assignment si nécessaire
                     String payrollDate = utilService.formatDate(utilService.getFormattedDate(salarySlip.getMonth()), "yyyy-MM-dd");
-                    if (!checkSalaryStructureAssignmentExists(salarySlip.getEmployeeId(), salarySlip.getSalaryStructure(), payrollDate, Double.parseDouble(salarySlip.getBaseSalary()), sid)) {
+                    if (!checkSalaryStructureAssignmentExists(salarySlip.getEmployeeId(), salarySlip.getSalaryStructure(), payrollDate, salarySlip.getBaseSalary(), sid)) {
                         boolean assignmentCreated = createSalaryStructureAssignment(salarySlip, sid, lineNumber, results);
                         if (!assignmentCreated) {
                             results.add(String.format("Line %d: Failed to create Salary Structure Assignment for employee %s (Ref: %s)", lineNumber, employeeId, ref));
@@ -522,9 +523,8 @@ public class ImportService {
 
                         // Soumettre le Salary Slip
                         ResponseEntity<Map> submitResponse = erpNextApiService.submitResource("Salary Slip", slipName, sid);
-                        // Après avoir soumis le Salary Slip, ajoutez ceci :
                         if (submitResponse.getStatusCode().is2xxSuccessful()) {
-                            // Après la soumission du Salary Slip
+                            // Mettre à jour après soumission
                             Map<String, Object> updateData = new HashMap<>();
                             updateData.put("calculate_total_salary", 1);
                             ResponseEntity<Map> updateResponse = erpNextApiService.updateResource("Salary Slip", slipName, updateData, sid);
@@ -555,6 +555,29 @@ public class ImportService {
         }
 
         return results;
+    }
+
+    // Méthode pour parser une ligne CSV en gérant les guillemets
+    private String[] parseCsvLine(String line) {
+        List<String> fields = new ArrayList<>();
+        boolean inQuotes = false;
+        StringBuilder field = new StringBuilder();
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+            if (c == '"') {
+                inQuotes = !inQuotes;
+                continue;
+            }
+            if (c == ',' && !inQuotes) {
+                fields.add(field.toString());
+                field = new StringBuilder();
+            } else {
+                field.append(c);
+            }
+        }
+        // Ajouter le dernier champ
+        fields.add(field.toString());
+        return fields.toArray(new String[0]);
     }
 
     private boolean checkSalaryStructureAssignmentExists(String employeeId, String salaryStructure, String payrollDate, double baseSalary, String sid) {
@@ -590,7 +613,7 @@ public class ImportService {
             assignmentPayload.put("to_date", toDate);
             
             // Définir le salaire de base
-            assignmentPayload.put("base", Double.parseDouble(salarySlip.getBaseSalary()));
+            assignmentPayload.put("base", salarySlip.getBaseSalary());
             
             // Récupérer la compagnie
             String company = getEmployeeCompany(salarySlip.getEmployeeId(), sid);
@@ -605,7 +628,7 @@ public class ImportService {
                         lineNumber, salarySlip.getEmployeeId(), assignmentPayload);
 
             // Vérifier si une affectation existe déjà pour la période exacte et le salaire de base
-            if (checkSalaryStructureAssignmentExists(salarySlip.getEmployeeId(), salarySlip.getSalaryStructure(), payrollDate, Double.parseDouble(salarySlip.getBaseSalary()), sid)) {
+            if (checkSalaryStructureAssignmentExists(salarySlip.getEmployeeId(), salarySlip.getSalaryStructure(), payrollDate, salarySlip.getBaseSalary(), sid)) {
                 results.add(String.format("Line %d: Salary Structure Assignment already exists for employee %s, period %s", 
                                         lineNumber, salarySlip.getEmployeeId(), payrollDate));
                 logger.info("Line {}: Salary Structure Assignment already exists for employee {}, period {}", 

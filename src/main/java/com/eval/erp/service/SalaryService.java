@@ -176,59 +176,59 @@ public class SalaryService {
     }
 
     public SalarySummary getSalarySummaryByMonth(String month, String year, String sid) throws Exception {
-        try {
-            String fields = "[\"name\"]";
-            String filters = "";
-            if (month != null && !month.isEmpty() && year != null && !year.isEmpty()) {
-                String monthNum = String.format("%02d", Arrays.asList(
-                        new SimpleDateFormat("MMMM", Locale.ENGLISH).getDateFormatSymbols().getMonths())
-                        .indexOf(month) + 1);
+    try {
+        String fields = "[\"name\"]";
+        String filters = "";
+        if (month != null && !month.isEmpty() && year != null && !year.isEmpty()) {
+            String monthNum = String.format("%02d", Arrays.asList(
+                    new SimpleDateFormat("MMMM", Locale.ENGLISH).getDateFormatSymbols().getMonths())
+                    .indexOf(month) + 1);
 
-                String startDate = year + "-" + monthNum + "-01";
-                String endDate = LocalDate.of(Integer.parseInt(year), Integer.parseInt(monthNum), 1)
-                        .withDayOfMonth(LocalDate.of(Integer.parseInt(year), Integer.parseInt(monthNum), 1).lengthOfMonth())
-                        .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+            String startDate = year + "-" + monthNum + "-01";
+            String endDate = LocalDate.of(Integer.parseInt(year), Integer.parseInt(monthNum), 1)
+                    .withDayOfMonth(LocalDate.of(Integer.parseInt(year), Integer.parseInt(monthNum), 1).lengthOfMonth())
+                    .format(DateTimeFormatter.ofPattern("yyyy-MM-dd"));
 
-                filters = String.format("[[\"posting_date\",\"between\",[\"%s\", \"%s\"]]]", startDate, endDate);
-            }
-
-            ResponseEntity<Map> response = erpNextApiService.getResource("Salary Slip", fields, filters, sid);
-            if (response.getBody() == null || !response.getBody().containsKey("data")) {
-                logger.error("Invalid response from ERPNext API for salaries: {}", response);
-                throw new Exception("Invalid response from ERPNext API");
-            }
-
-            List<Map<String, Object>> salaryData = (List<Map<String, Object>>) response.getBody().get("data");
-            List<Salary> salaries = new ArrayList<>();
-            double totalGrossPay = 0.0;
-            double totalDeductions = 0.0;
-            double totalNetPay = 0.0;
-
-            for (Map<String, Object> data : salaryData) {
-                String payslipId = (String) data.get("name");
-                try {
-                    Salary payslip = getPayslipById(payslipId, sid);
-                    salaries.add(payslip);
-
-                    if (payslip.getGrossPay() != null) totalGrossPay += payslip.getGrossPay();
-                    if (payslip.getTotalDeduction() != null) totalDeductions += payslip.getTotalDeduction();
-                    if (payslip.getNetPay() != null) totalNetPay += payslip.getNetPay();
-                } catch (Exception e) {
-                    logger.error("Error fetching details for payslip {}: {}", payslipId, e.getMessage());
-                    continue;
-                }
-            }
-
-            logger.info("Fetched {} salaries with totals for month {}, year {}: GrossPay={}, Deductions={}, NetPay={}", 
-                        salaries.size(), month != null ? month : "All", year != null ? year : "All",
-                        totalGrossPay, totalDeductions, totalNetPay);
-
-            return new SalarySummary(salaries, totalGrossPay, totalDeductions, totalNetPay);
-        } catch (Exception e) {
-            logger.error("Error fetching salary summary for month {}, year {}: {}", month, year, e.getMessage(), e);
-            throw new Exception("Error fetching salary summary: " + e.getMessage());
+            filters = String.format("[[\"posting_date\",\"between\",[\"%s\", \"%s\"]]]", startDate, endDate);
         }
+
+        ResponseEntity<Map> response = erpNextApiService.getResource("Salary Slip", fields, filters, sid);
+        if (response.getBody() == null || !response.getBody().containsKey("data")) {
+            logger.error("Invalid response from ERPNext API for salaries: {}", response);
+            throw new Exception("Invalid response from ERPNext API");
+        }
+
+        List<Map<String, Object>> salaryData = (List<Map<String, Object>>) response.getBody().get("data");
+        List<Salary> salaries = new ArrayList<>();
+        double totalGrossPay = 0.0;
+        double totalDeductions = 0.0;
+        double totalNetPay = 0.0;
+
+        for (Map<String, Object> data : salaryData) {
+            String payslipId = (String) data.get("name");
+            try {
+                Salary payslip = getPayslipById(payslipId, sid);
+                salaries.add(payslip);
+
+                if (payslip.getGrossPay() != null) totalGrossPay += payslip.getGrossPay();
+                if (payslip.getTotalDeduction() != null) totalDeductions += payslip.getTotalDeduction();
+                if (payslip.getNetPay() != null) totalNetPay += payslip.getNetPay();
+            } catch (Exception e) {
+                logger.error("Error fetching details for payslip {}: {}", payslipId, e.getMessage());
+                continue;
+            }
+        }
+
+        logger.info("Fetched {} salaries with totals for month {}, year {}: GrossPay={}, Deductions={}, NetPay={}", 
+                    salaries.size(), month != null ? month : "All", year != null ? year : "All",
+                    totalGrossPay, totalDeductions, totalNetPay);
+
+        return new SalarySummary(salaries, totalGrossPay, totalDeductions, totalNetPay);
+    } catch (Exception e) {
+        logger.error("Error fetching salary summary for month {}, year {}: {}", month, year, e.getMessage(), e);
+        throw new Exception("Error fetching salary summary: " + e.getMessage());
     }
+}
 
     public List<SalaryTotal> getSalaryTotalsByYear(String year, String sid) throws Exception {
         try {
