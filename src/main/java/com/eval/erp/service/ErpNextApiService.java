@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -28,6 +29,13 @@ public class ErpNextApiService {
         if (filters != null && !filters.isEmpty()) {
             url += "&filters=" + filters;
         }
+        return executeGetRequest(url, sid);
+    }
+
+    public ResponseEntity<Map> getResource(String doctype, String fields, String filters, String sid, int limitPageLength, int limitStart) throws Exception {
+        String url= erpNextApiUrl; 
+        url += String.format("/api/resource/%s?fields=%s&filters=%s&limit_page_length=%d&limit_start=%d", 
+                                 doctype, fields, filters, limitPageLength, limitStart);
         return executeGetRequest(url, sid);
     }
 
@@ -56,6 +64,8 @@ public class ErpNextApiService {
         String url = erpNextApiUrl + "/api/resource/" + resourceType + "/" + id + "?run_method=cancel";
         return executePostRequest(url, null, sid);
     }
+
+
 
     private ResponseEntity<Map> executeGetRequest(String url, String sid) {
         RestTemplate restTemplate = new RestTemplate();
