@@ -39,6 +39,13 @@ public class ErpNextApiService {
         return executeGetRequest(url, sid);
     }
 
+    public ResponseEntity<Map> getResource(String doctype, String fields, String filters, String sid, int limitPageLength) throws Exception {
+        String url= erpNextApiUrl; 
+        url += String.format("/api/resource/%s?fields=%s&filters=%s&limit_page_length=%d", 
+                                 doctype, fields, filters, limitPageLength);
+        return executeGetRequest(url, sid);
+    }
+
     // New getResourceById method (for direct ID-based fetching)
     public ResponseEntity<Map> getResourceById(String resourcePath, String sid) {
         String url = erpNextApiUrl + "/api/resource/" + resourcePath;

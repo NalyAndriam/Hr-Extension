@@ -231,108 +231,109 @@ public class SalaryService {
 }
 
     public List<SalaryTotal> getSalaryTotalsByYear(String year, String sid) throws Exception {
-        try {
-            String fields = "[\"name\"]";
-            String filters = "";
-            if (year != null && !year.isEmpty()) {
-                String startDate = year + "-01-01";
-                String endDate = year + "-12-31";
-                filters = String.format("[[\"posting_date\",\"between\",[\"%s\", \"%s\"]]]", startDate, endDate);
-            }
-
-            ResponseEntity<Map> response = erpNextApiService.getResource("Salary Slip", fields, filters, sid);
-            if (response.getBody() == null || !response.getBody().containsKey("data")) {
-                logger.error("Invalid response from ERPNext API for salary totals: {}", response);
-                throw new Exception("Invalid response from ERPNext API");
-            }
-
-            List<Map<String, Object>> salaryData = (List<Map<String, Object>>) response.getBody().get("data");
-            List<Salary> salaries = new ArrayList<>();
-
-            for (Map<String, Object> data : salaryData) {
-                String payslipId = (String) data.get("name");
-                try {
-                    Salary payslip = getPayslipById(payslipId, sid);
-                    salaries.add(payslip);
-                } catch (Exception e) {
-                    logger.error("Error fetching details for payslip {}: {}", payslipId, e.getMessage());
-                    continue;
-                }
-            }
-
-            Map<String, List<Salary>> salariesByMonth = salaries.stream()
-                    .filter(s -> s.getMonth() != null && s.getYear() != null)
-                    .collect(Collectors.groupingBy(
-                            s -> s.getMonth() + "-" + s.getYear(),
-                            Collectors.toList()
-                    ));
-
-            List<SalaryTotal> salaryTotals = new ArrayList<>();
-            SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM", Locale.ENGLISH);
-
-            for (Map.Entry<String, List<Salary>> entry : salariesByMonth.entrySet()) {
-                String[] parts = entry.getKey().split("-");
-                String month = parts[0];
-                Integer yearNum = Integer.parseInt(parts[1]);
-
-                List<Salary> monthSalaries = entry.getValue();
-                double totalGrossPay = 0.0;
-                double totalDeductions = 0.0;
-                double totalNetPay = 0.0;
-                Map<String, Double> componentTotals = new HashMap<>();
-
-                for (Salary salary : monthSalaries) {
-                    if (salary.getGrossPay() != null) totalGrossPay += salary.getGrossPay();
-                    if (salary.getTotalDeduction() != null) totalDeductions += salary.getTotalDeduction();
-                    if (salary.getNetPay() != null) totalNetPay += salary.getNetPay();
-
-                    if (salary.getEarnings() != null) {
-                        for (Component earning : salary.getEarnings()) {
-                            if (earning.getDescription() != null && earning.getAmount() != null) {
-                                componentTotals.merge(
-                                        "Earning: " + earning.getDescription(),
-                                        earning.getAmount(),
-                                        Double::sum
-                                );
-                            }
-                        }
-                    }
-
-                    if (salary.getDeductions() != null) {
-                        for (Component deduction : salary.getDeductions()) {
-                            if (deduction.getDescription() != null && deduction.getAmount() != null) {
-                                componentTotals.merge(
-                                        "Deduction: " + deduction.getDescription(),
-                                        deduction.getAmount(),
-                                        Double::sum
-                                );
-                            }
-                        }
-                    }
-                }
-
-                logger.info("Totals for {} {}: GrossPay={}, Deductions={}, NetPay={}, ComponentTotals={}, Salaries={}", 
-                            month, yearNum, totalGrossPay, totalDeductions, totalNetPay, componentTotals, monthSalaries.size());
-
-                SalaryTotal salaryTotal = new SalaryTotal(month, yearNum, totalGrossPay, totalDeductions, totalNetPay, monthSalaries, componentTotals);
-                salaryTotals.add(salaryTotal);
-            }
-
-            salaryTotals.sort((a, b) -> {
-                int yearCompare = a.getYear().compareTo(b.getYear());
-                if (yearCompare != 0) return yearCompare;
-                return Arrays.asList(monthFormat.getDateFormatSymbols().getMonths())
-                        .indexOf(a.getMonth()) - Arrays.asList(monthFormat.getDateFormatSymbols().getMonths())
-                        .indexOf(b.getMonth());
-            });
-
-            logger.info("Fetched {} salary totals for year {}", salaryTotals.size(), year != null ? year : "All");
-            return salaryTotals;
-        } catch (Exception e) {
-            logger.error("Error fetching salary totals for year {}: {}", year, e.getMessage(), e);
-            throw new Exception("Error fetching salary totals: " + e.getMessage());
+    try {
+        String fields = "[\"name\"]";
+        String filters = "";
+        if (year != null && !year.isEmpty()) {
+            String startDate = year + "-01-01";
+            String endDate = year + "-12-31";
+            filters = String.format("[[\"posting_date\",\"between\",[\"%s\", \"%s\"]]]", startDate, endDate);
         }
+
+        // Add limit_page_length to restrict to 100 rows
+        ResponseEntity<Map> response = erpNextApiService.getResource("Salary Slip", fields, filters, sid, 100);
+        if (response.getBody() == null || !response.getBody().containsKey("data")) {
+            logger.error("Invalid response from ERPNext API for salary totals: {}", response);
+            throw new Exception("Invalid response from ERPNext API");
+        }
+
+        List<Map<String, Object>> salaryData = (List<Map<String, Object>>) response.getBody().get("data");
+        List<Salary> salaries = new ArrayList<>();
+
+        for (Map<String, Object> data : salaryData) {
+            String payslipId = (String) data.get("name");
+            try {
+                Salary payslip = getPayslipById(payslipId, sid);
+                salaries.add(payslip);
+            } catch (Exception e) {
+                logger.error("Error fetching details for payslip {}: {}", payslipId, e.getMessage());
+                continue;
+            }
+        }
+
+        Map<String, List<Salary>> salariesByMonth = salaries.stream()
+                .filter(s -> s.getMonth() != null && s.getYear() != null)
+                .collect(Collectors.groupingBy(
+                        s -> s.getMonth() + "-" + s.getYear(),
+                        Collectors.toList()
+                ));
+
+        List<SalaryTotal> salaryTotals = new ArrayList<>();
+        SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM", Locale.ENGLISH);
+
+        for (Map.Entry<String, List<Salary>> entry : salariesByMonth.entrySet()) {
+            String[] parts = entry.getKey().split("-");
+            String month = parts[0];
+            Integer yearNum = Integer.parseInt(parts[1]);
+
+            List<Salary> monthSalaries = entry.getValue();
+            double totalGrossPay = 0.0;
+            double totalDeductions = 0.0;
+            double totalNetPay = 0.0;
+            Map<String, Double> componentTotals = new HashMap<>();
+
+            for (Salary salary : monthSalaries) {
+                if (salary.getGrossPay() != null) totalGrossPay += salary.getGrossPay();
+                if (salary.getTotalDeduction() != null) totalDeductions += salary.getTotalDeduction();
+                if (salary.getNetPay() != null) totalNetPay += salary.getNetPay();
+
+                if (salary.getEarnings() != null) {
+                    for (Component earning : salary.getEarnings()) {
+                        if (earning.getDescription() != null && earning.getAmount() != null) {
+                            componentTotals.merge(
+                                    "Earning: " + earning.getDescription(),
+                                    earning.getAmount(),
+                                    Double::sum
+                            );
+                        }
+                    }
+                }
+
+                if (salary.getDeductions() != null) {
+                    for (Component deduction : salary.getDeductions()) {
+                        if (deduction.getDescription() != null && deduction.getAmount() != null) {
+                            componentTotals.merge(
+                                    "Deduction: " + deduction.getDescription(),
+                                    deduction.getAmount(),
+                                    Double::sum
+                            );
+                        }
+                    }
+                }
+            }
+
+            logger.info("Totals for {} {}: GrossPay={}, Deductions={}, NetPay={}, ComponentTotals={}, Salaries={}", 
+                        month, yearNum, totalGrossPay, totalDeductions, totalNetPay, componentTotals, monthSalaries.size());
+
+            SalaryTotal salaryTotal = new SalaryTotal(month, yearNum, totalGrossPay, totalDeductions, totalNetPay, monthSalaries, componentTotals);
+            salaryTotals.add(salaryTotal);
+        }
+
+        salaryTotals.sort((a, b) -> {
+            int yearCompare = a.getYear().compareTo(b.getYear());
+            if (yearCompare != 0) return yearCompare;
+            return Arrays.asList(monthFormat.getDateFormatSymbols().getMonths())
+                    .indexOf(a.getMonth()) - Arrays.asList(monthFormat.getDateFormatSymbols().getMonths())
+                    .indexOf(b.getMonth());
+        });
+
+        logger.info("Fetched {} salary totals for year {} (limited to 100 salary slips)", salaryTotals.size(), year != null ? year : "All");
+        return salaryTotals;
+    } catch (Exception e) {
+        logger.error("Error fetching salary totals for year {}: {}", year, e.getMessage(), e);
+        throw new Exception("Error fetching salary totals: " + e.getMessage());
     }
+}
 
     public Map<String, Object> getSalaryChartData(String year, String sid) throws Exception {
         try {
