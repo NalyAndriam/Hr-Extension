@@ -3,78 +3,236 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ERPNext - Accueil</title>
+    <title>ERPNext - Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" th:href="@{/css/navbar.css}">
     <link rel="stylesheet" th:href="@{/css/sidebar.css}">
     <link rel="stylesheet" th:href="@{/css/style.css}">
+    <style>
+        .frappe-card { border: 1px solid #dee2e6; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .welcome-container { text-align: center; padding: 30px 0; background: linear-gradient(135deg, #007bff, #6610f2); color: white; border-radius: 8px; margin-bottom: 30px; }
+        .welcome-message { font-size: 2rem; font-weight: bold; }
+        .highlight { color: #ffd700; }
+        
+        /* Improved stat cards */
+        .stat-card { 
+            position: relative;
+            text-align: center; 
+            padding: 25px 20px; 
+            border-radius: 15px; 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            border: none;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--card-gradient));
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.15);
+        }
+        
+        .stat-card.employees {
+            background: linear-gradient(135deg, #e8f4f8 0%, #d1ecf1 100%);
+            color: #2c3e50;
+            border: 1px solid #b8dce8;
+            --card-gradient: #7fb3d3, #5d99c6;
+        }
+        
+        .stat-card.gross-pay {
+            background: linear-gradient(135deg, #fef7e8 0%, #f9edd1 100%);
+            color: #2c3e50;
+            border: 1px solid #f0d9a8;
+            --card-gradient: #e6c068, #d4a857;
+        }
+        
+        .stat-card.net-pay {
+            background: linear-gradient(135deg, #f0f9e8 0%, #e1f5d1 100%);
+            color: #2c3e50;
+            border: 1px solid #c8e6a8;
+            --card-gradient: #81c784, #66bb6a;
+        }
+        
+        .stat-card .icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            opacity: 0.7;
+        }
+        
+        .stat-card h3 { 
+            font-size: 2.8rem; 
+            font-weight: 700;
+            margin-bottom: 8px;
+            text-shadow: none;
+        }
+        
+        .stat-card p { 
+            font-size: 1.1rem; 
+            margin: 0;
+            opacity: 0.8;
+            font-weight: 500;
+        }
+        
+        .stat-card .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.6;
+            margin-top: 5px;
+        }
+        
+        .frappe-table { width: 100%; border-collapse: collapse; }
+        .frappe-table th, .frappe-table td { padding: 12px; border: 1px solid #dee2e6; }
+        .frappe-table th { background-color: #f8f9fa; font-weight: 600; }
+        .no-result { font-style: italic; color: #6c757d; text-align: center; padding: 20px; }
+        .chart-container { position: relative; height: 400px; width: 100%; margin-bottom: 30px; }
+        
+        @media print {
+            .no-print { display: none !important; }
+            .main-content { margin-left: 0; padding: 0; }
+            .frappe-card { border: none; box-shadow: none; padding: 0; }
+        }
+        
+        .btn-link {
+            color: inherit;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+
+        .btn-link:hover {
+            text-decoration: underline;
+        }
+        
+        /* Animation for numbers */
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .stat-card h3 {
+            animation: countUp 0.6s ease-out;
+        }
+    </style>
 </head>
 <body>
     <!-- Sidebar -->
-    <div th:replace="~{sidebar :: sidebar}"></div>
+    <div th:replace="~{sidebar :: sidebar}" class="no-print"></div>
 
     <!-- Navbar -->
-    <div th:replace="~{navbar :: navbar}"></div>
-     
-    
+    <div th:replace="~{navbar :: navbar}" class="no-print"></div>
+
     <!-- Main Content -->
     <div class="main-content">
-        <div class="container-fluid p-0">
-            <!-- <div class="row mb-4">
-                <div class="col-12">
-                    <h4 class="page-title">Your shortcuts</h4>
-                </div>
-            </div> -->
-            
-            <div class="row">
-                <div class="col-12">
-                    <div class="welcome-container">
-                        <div class="welcome-message">
-                            <span class="highlight">Welcome</span> to the Frappe-HR extension !                          
+        <div class="container-fluid p-4">
+
+            <!-- Error Message -->
+            <div th:if="${error}" class="alert alert-danger" role="alert">
+                <span th:text="${error}"></span>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="row mb-4" th:with="currentYear=${#dates.year(#dates.createNow())}">
+                <div class="col-md-4 mb-3">
+                    <div class="frappe-card stat-card employees">
+                        <div class="icon">
+                            <i class="fas fa-users"></i>
                         </div>
+                        <h3 th:text="${totalEmployees != null} ? ${totalEmployees} : '0'">0</h3>
+                        <p>Total Employees</p>
+                        <div class="subtitle">Active workforce</div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="frappe-card stat-card gross-pay">
+                        <div class="icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h3 th:text="${totalGrossPay != null} ? ${#numbers.formatDecimal(totalGrossPay, 0, 'COMMA', 2, 'POINT')} : '0.00'">0.00</h3>
+                        <p>Total Gross Pay</p>
+                        <div class="subtitle" th:text="'Year ' + ${currentYear}">This Year</div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="frappe-card stat-card net-pay">
+                        <div class="icon">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <h3 th:text="${avgNetPay != null} ? ${#numbers.formatDecimal(avgNetPay, 0, 'COMMA', 2, 'POINT')} : '0.00'">0.00</h3>
+                        <p>Average Net Pay</p>
+                        <div class="subtitle" th:text="'Year ' + ${currentYear}">This Year</div>
                     </div>
                 </div>
             </div>
-            
-            <!-- <div class="row mt-4">
-                
-                <div class="col-md-4 mb-4">
-                    <div class="card dashboard-card">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="card-title">Suppliers</h5>
-                                <i class="fas fa-truck text-secondary"></i>
-                            </div>
-                            <p class="card-text text-muted">Manage quotation requests & purchase orders </p>
-                            <a href="#" th:href="@{/suppliers}" class="btn btn-sm btn-outline-primary">See suppliers list</a>
-                        </div>
+
+            <!-- Recent Salaries -->
+            <div class="row">
+                <div class="col-12">
+                    <div class="frappe-card">
+                        <h5>Recent Salary Slips</h5>
+                        <table class="frappe-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Salary Slip ID</th>
+                                    <th scope="col">Employee</th>
+                                    <th scope="col">Month</th>
+                                    <th scope="col">Year</th>
+                                    <th scope="col">Gross Pay</th>
+                                    <th scope="col">Net Pay</th>
+                                    <th scope="col">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="salary : ${recentSalaries}">
+                                    <td>
+                                        <a th:href="@{/employee/{employeeId}/payslip/{payslipId}(employeeId=${salary.employee},payslipId=${#strings.replace(salary.name,'/','_')})}" 
+                                           th:text="${salary.name}" class="btn-link"></a>
+                                    </td>
+                                    <td th:text="${salary.employeeName}"></td>
+                                    <td th:text="${salary.month}"></td>
+                                    <td th:text="${salary.year}"></td>
+                                    <td th:text="${#numbers.formatDecimal(salary.grossPay, 0, 'COMMA', 2, 'POINT')}"></td>
+                                    <td th:text="${#numbers.formatDecimal(salary.netPay, 0, 'COMMA', 2, 'POINT')}"></td>
+                                    <td>
+                                        <span th:text="${salary.status}"
+                                              th:class="${salary.status == 'Submitted' ? 'indicator-pill blue' :
+                                                         salary.status == 'Generated' ? 'indicator-pill violet' :
+                                                         salary.status == 'Approved' ? 'indicator-pill green' :
+                                                         salary.status == 'Paid' ? 'indicator-pill dark-green' :
+                                                         salary.status == 'Pending' ? 'indicator-pill orange' :
+                                                         salary.status == 'Rejected' ? 'indicator-pill red' :
+                                                         salary.status == 'Cancelled' ? 'indicator-pill gray' :
+                                                         'indicator-pill gray'}">
+                                        </span>
+                                    </td>
+                                </tr>
+                                <tr th:if="${recentSalaries == null or recentSalaries.isEmpty()}">
+                                    <td colspan="7" class="no-result">
+                                        No recent salary records found.
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
-                
-                <div class="col-md-4 mb-4">
-                    <div class="card dashboard-card">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <h5 class="card-title">Accounting mode</h5>
-                                <i class="fas fa-chart-bar text-secondary"></i>
-                            </div>
-                            <p class="card-text text-muted">Manage purchase invoices</p>
-                            <a href="#" class="btn btn-sm btn-outline-primary">Voir les rapports</a>
-                        </div>
-                    </div>
-                </div>
-            </div> -->
+            </div>
         </div>
     </div>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        // Ajustement pour le responsive design
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script th:inline="javascript">
         document.addEventListener('DOMContentLoaded', function() {
             const sidebar = document.querySelector('.sidebar');
             const mainContent = document.querySelector('.main-content');
-            
+
             function adjustLayout() {
                 if (window.innerWidth >= 992) {
                     mainContent.style.marginLeft = '240px';
@@ -82,20 +240,49 @@
                     mainContent.style.marginLeft = '0';
                 }
             }
-            
-            // Exécuter au chargement
+
             adjustLayout();
-            
-            // Exécuter au redimensionnement
             window.addEventListener('resize', adjustLayout);
-            
-            // Ajuster au toggle de la sidebar sur mobile
+
             const navbarToggler = document.querySelector('.navbar-toggler');
             if (navbarToggler) {
                 navbarToggler.addEventListener('click', function() {
                     if (window.innerWidth < 992) {
                         if (sidebar.classList.contains('show')) {
                             mainContent.style.marginLeft = '0';
+                        }
+                    }
+                });
+            }
+
+            // Chart.js setup
+            const chartData = /*[[${chartDataJson}]]*/ {};
+            const ctx = document.getElementById('salaryChart');
+            if (ctx) {
+                new Chart(ctx.getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: chartData.months || [],
+                        datasets: chartData.datasets || []
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: { display: true, text: 'Amount' }
+                            },
+                            x: {
+                                title: { display: true, text: 'Month' }
+                            }
+                        },
+                        plugins: {
+                            legend: { position: 'top' },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false
+                            }
                         }
                     }
                 });

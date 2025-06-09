@@ -1,0 +1,127 @@
+package com.eval.erp.service;
+
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+
+@Service
+public class CompanyService {
+
+    private final ErpNextApiService erpNextApiService;
+    private static final Logger logger = LoggerFactory.getLogger(CompanyService.class);
+
+    public CompanyService(ErpNextApiService erpNextApiService) {
+        this.erpNextApiService = erpNextApiService;
+    }
+
+    public boolean ensureCompanyExists(String companyName, String sid, int lineNumber, List<String> results) {
+        try {
+            // Vérifier si l'entreprise existe
+            String fields = "[\"name\"]";
+            String filters = String.format("[[\"name\",\"=\",\"%s\"]]", companyName);
+            ResponseEntity<Map> response = erpNextApiService.getResource("Company", fields, filters, sid);
+            List<Map<String, Object>> companyData = (List<Map<String, Object>>) response.getBody().get("data");
+
+            if (!companyData.isEmpty()) {
+                logger.info("Company {} already exists", companyName);
+                return true;
+            }
+
+            // Create or get the holiday list
+            String holidayListName = createDefaultHolidayList(companyName, sid, lineNumber, results);
+            if (holidayListName == null) {
+                results.add(String.format("Line %d: Failed to create company %s due to holiday list creation failure", lineNumber, companyName));
+                logger.error("Failed to create company {} due to holiday list creation failure", companyName);
+                return false;
+            }
+
+            // Créer une nouvelle entreprise
+            Map<String, Object> companyPayload = new HashMap<>();
+            companyPayload.put("company_name", companyName);
+            companyPayload.put("default_currency", "MGA"); // À ajuster selon la configuration
+            companyPayload.put("abbr", companyName.substring(0, Math.min(3, companyName.length())).toUpperCase());
+            companyPayload.put("country", "Madagascar"); // À ajuster selon les besoins
+            companyPayload.put("default_holiday_list", holidayListName); // À ajuster
+            companyPayload.put("docstatus", 1);
+
+            ResponseEntity<Map> createResponse = erpNextApiService.postResource("Company", companyPayload, sid);
+            if (createResponse.getStatusCode().is2xxSuccessful()) {
+                results.add(String.format("Line %d: Company %s successfully created", lineNumber, companyName));
+                logger.info("Company {} successfully created", companyName);
+                return true;
+            } else {
+                String errorMsg = createResponse.getBody() != null ? createResponse.getBody().toString() : "Unknown error";
+                results.add(String.format("Line %d: Failed to create company %s: %s", lineNumber, companyName, errorMsg));
+                logger.error("Failed to create company {}: {}", companyName, errorMsg);
+                return false;
+            }
+        } catch (Exception e) {
+            results.add(String.format("Line %d: Error checking/creating company %s: %s", lineNumber, companyName, e.getMessage()));
+            logger.error("Error checking/creating company {}: {}", companyName, e.getMessage());
+            return false;
+        }
+    }
+
+    private String createDefaultHolidayList(String companyName, String sid, int lineNumber, List<String> results) {
+        try {
+            // Generate a unique Holiday List name
+            int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+            String holidayListName = String.format("%s Holiday List %d", companyName, currentYear);
+
+            // Check if Holiday List already exists
+            String fields = "[\"name\"]";
+            String filters = "[ [\"name\",\"=\",\"" + holidayListName + "\"] ]";
+            ResponseEntity<Map> checkResponse = erpNextApiService.getResource("Holiday List", fields, filters, sid);
+            List<Map<String, Object>> holidayListData = (List<Map<String, Object>>) checkResponse.getBody().get("data");
+
+            if (!holidayListData.isEmpty()) {
+                logger.info("Holiday List '{}' already exists for company '{}'", holidayListName, companyName);
+                return holidayListName;
+            }
+
+            // Create a new Holiday List
+            Map<String, Object> holidayListPayload = new HashMap<>();
+            holidayListPayload.put("holiday_list_name", holidayListName);
+            holidayListPayload.put("from_date", String.format("%d-01-01", currentYear));
+            holidayListPayload.put("to_date", String.format("%d-12-31", currentYear));
+            holidayListPayload.put("weekly_off", "Sunday"); // Set Sunday as the default weekly off
+
+            // Add a sample holiday (optional, adjust as needed)
+            List<Map<String, Object>> holidays = new ArrayList<>();
+            Map<String, Object> sampleHoliday = new HashMap<>();
+            sampleHoliday.put("description", "New Year's Day");
+            sampleHoliday.put("holiday_date", String.format("%d-01-01", currentYear));
+            holidays.add(sampleHoliday);
+            holidayListPayload.put("holidays", holidays);
+
+            ResponseEntity<Map> createResponse = erpNextApiService.postResource("Holiday List", holidayListPayload, sid);
+            if (createResponse.getStatusCode().is2xxSuccessful()) {
+                results.add(String.format("Line %d: Holiday List '%s' successfully created for company '%s'", lineNumber, holidayListName, companyName));
+                logger.info("Holiday List '{}' created successfully for company '{}'", holidayListName, companyName);
+                return holidayListName;
+            } else {
+                String errorMsg = createResponse.getBody() != null ? createResponse.getBody().toString() : "Unknown error";
+                results.add(String.format("Line %d: Failed to create Holiday List '%s': %s", lineNumber, holidayListName, errorMsg));
+                logger.error("Failed to create Holiday List '{}' for company '{}': {}", holidayListName, companyName, errorMsg);
+                return null;
+            }
+        } catch (HttpClientErrorException e) {
+            String errorMsg = e.getResponseBodyAsString().isEmpty() ? e.getStatusText() : e.getResponseBodyAsString();
+            results.add(String.format("Line %d: Error creating Holiday List for company '%s': %s", lineNumber, companyName, errorMsg));
+            logger.error("Error creating Holiday List for company '{}': {}", companyName, errorMsg);
+            return null;
+        } catch (Exception e) {
+            results.add(String.format("Line %d: Error creating Holiday List for company '%s': %s", lineNumber, companyName, e.getMessage()));
+            logger.error("Error creating Holiday List for company '{}': {}", companyName, e.getMessage(), e);
+            return null;
+        }
+    }
+}
