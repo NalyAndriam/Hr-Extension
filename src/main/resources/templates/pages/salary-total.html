@@ -161,11 +161,18 @@
                 </table>
             </div>
 
-            <!-- Salary Evolution Chart -->
+            <!-- Salary Evolution Charts -->
             <div th:if="${chartData != null and not chartData.months.empty and salaryTotals != null and not salaryTotals.empty}" class="frappe-card">
-                <h3>Salary Evolution Chart</h3>
+                <h3>Salary Evolution Charts</h3>
+                <!-- Bar Chart -->
+                <h4>Bar Chart</h4>
                 <div class="chart-container">
-                    <canvas id="salaryEvolutionChart"></canvas>
+                    <canvas id="salaryEvolutionBarChart"></canvas>
+                </div>
+                <!-- Line Chart -->
+                <h4>Line Chart</h4>
+                <div class="chart-container">
+                    <canvas id="salaryEvolutionLineChart"></canvas>
                 </div>
                 <div id="chart-data" th:attr="data-chart=${chartDataJson}" style="display: none;"></div>
             </div>
@@ -174,70 +181,100 @@
     </div>
 
     <!-- JavaScript -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script th:if="${chartData != null and not chartData.months.empty}">
-        document.addEventListener('DOMContentLoaded', function() {
-            try {
-                const chartDataElement = document.getElementById('chart-data');
-                const chartData = JSON.parse(chartDataElement.getAttribute('data-chart'));
+    <!-- JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script th:if="${chartData != null and not chartData.months.empty}">
+    document.addEventListener('DOMContentLoaded', function() {
+        try {
+            const chartDataElement = document.getElementById('chart-data');
+            const chartData = JSON.parse(chartDataElement.getAttribute('data-chart'));
 
-                console.log('Parsed chart data:', chartData);
-                console.log('Months:', chartData.months);
-                console.log('Datasets:', chartData.datasets);
+            console.log('Parsed chart data:', chartData);
+            console.log('Months:', chartData.months);
+            console.log('Datasets:', chartData.datasets);
 
-                const chartTitle = chartData.year && chartData.year !== '' 
-                    ? 'Salary Totals by Month (' + chartData.year + ')' 
-                    : 'Salary Totals by Month';
+            const chartTitle = chartData.year && chartData.year !== '' 
+                ? 'Salary Totals by Month (' + chartData.year + ')' 
+                : 'Salary Totals by Month';
 
-                const ctx = document.getElementById('salaryEvolutionChart').getContext('2d');
-                new Chart(ctx, {
-                    type: 'bar',
-                    data: {
-                        labels: chartData.months || [],
-                        datasets: chartData.datasets || []
+            // Common chart options
+            const commonOptions = {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        labels: {
+                            boxWidth: 20,
+                            padding: 15
+                        }
                     },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: {
-                                position: 'top',
-                                labels: {
-                                    boxWidth: 20,
-                                    padding: 15
-                                }
-                            },
-                            title: {
-                                display: true,
-                                text: chartTitle
-                            }
+                    title: {
+                        display: true,
+                        text: chartTitle
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Amount'
                         },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                title: {
-                                    display: true,
-                                    text: 'Amount'
-                                },
-                                ticks: {
-                                    callback: function(value) {
-                                        return value.toLocaleString();
-                                    }
-                                }
-                            },
-                            x: {
-                                title: {
-                                    display: true,
-                                    text: 'Month'
-                                }
+                        ticks: {
+                            callback: function(value) {
+                                return value.toLocaleString();
                             }
                         }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Month'
+                        }
                     }
-                });
-            } catch (e) {
-                console.error('Error initializing chart:', e);
-            }
-        });
-    </script>
+                }
+            };
+
+            // Bar Chart
+            const barCtx = document.getElementById('salaryEvolutionBarChart').getContext('2d');
+            new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: chartData.months || [],
+                    datasets: chartData.datasets || []
+                },
+                options: commonOptions
+            });
+
+            // Line Chart with pastel colors
+            const pastelColors = [
+                { border: '#A8E6CF', background: 'rgba(168, 230, 207, 0.5)' }, // Vert pastel pour salaire brut
+                { border: '#FFD3E0', background: 'rgba(255, 211, 224, 0.5)' }, // Rose pastel pour déductions
+                { border: '#B3CDE0', background: 'rgba(179, 205, 224, 0.5)' }  // Bleu pastel pour salaire net
+            ];
+
+            const lineCtx = document.getElementById('salaryEvolutionLineChart').getContext('2d');
+            new Chart(lineCtx, {
+                type: 'line',
+                data: {
+                    labels: chartData.months || [],
+                    datasets: chartData.datasets.map((dataset, index) => ({
+                        ...dataset,
+                        borderColor: pastelColors[index % pastelColors.length].border,
+                        backgroundColor: pastelColors[index % pastelColors.length].background,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }))
+                },
+                options: commonOptions
+            });
+        } catch (e) {
+            console.error('Error initializing charts:', e);
+        }
+    });
+</script>
 </body>
 </html>
