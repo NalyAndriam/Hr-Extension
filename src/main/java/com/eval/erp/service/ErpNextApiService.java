@@ -52,21 +52,25 @@ public class ErpNextApiService {
         return executeGetRequest(url, sid);
     }
 
+    //update
     public ResponseEntity<Map> updateResource(String resourceType, String id, Map<String, Object> data, String sid) {
         String url = erpNextApiUrl + "/api/resource/" + resourceType + "/" + id;
         return executePutRequest(url, data, sid);
     }
 
+    //create
     public ResponseEntity<Map> postResource(String resourceType, Map<String, Object> data, String sid) {
         String url = erpNextApiUrl + "/api/resource/" + resourceType;
         return executePostRequest(url, data, sid);
     }
 
+    //delete
     public ResponseEntity<Map> deleteResource(String resourceType, String id, String sid) {
         String url = erpNextApiUrl + "/api/resource/" + resourceType + "/" + id;
         return executeDeleteRequest(url, sid);
     }
 
+    //cancel
     public ResponseEntity<Map> cancelResource(String resourceType, String id, String sid) {
         String url = erpNextApiUrl + "/api/resource/" + resourceType + "/" + id + "?run_method=cancel";
         return executePostRequest(url, null, sid);

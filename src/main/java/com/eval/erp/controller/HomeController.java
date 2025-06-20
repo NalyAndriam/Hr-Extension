@@ -92,4 +92,9 @@ public class HomeController {
         }
         return "pages/home";
     }
+
+    @GetMapping("/test")
+    public String showTestPage() {
+        return "pages/insert-test";
+    }
 }
