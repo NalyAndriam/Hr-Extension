@@ -72,29 +72,30 @@ public class CompanyService {
 
     private String createDefaultHolidayList(String companyName, String sid, int lineNumber, List<String> results) {
         try {
-            // Generate a unique Holiday List name
-            int currentYear = Calendar.getInstance().get(Calendar.YEAR);
-            String holidayListName = String.format("%s Holiday List %d", companyName, currentYear);
 
-            // Check if Holiday List already exists
+            String holidayListName = "My Company Holiday List 2025";
+
+            // Check if Holiday List exists
             String fields = "[\"name\"]";
-            String filters = "[ [\"name\",\"=\",\"" + holidayListName + "\"] ]";
+            String filters = String.format("[[\"name\",\"=\",\"%s\"]]", holidayListName);
             ResponseEntity<Map> checkResponse = erpNextApiService.getResource("Holiday List", fields, filters, sid);
             List<Map<String, Object>> holidayListData = (List<Map<String, Object>>) checkResponse.getBody().get("data");
 
-            if (!holidayListData.isEmpty()) {
+            if (checkResponse.getStatusCode().is2xxSuccessful() && !holidayListData.isEmpty()) {
                 logger.info("Holiday List '{}' already exists for company '{}'", holidayListName, companyName);
+                results.add(String.format("Line %d: Holiday List '%s' already exists for company '%s'", lineNumber, holidayListName, companyName));
                 return holidayListName;
             }
 
-            // Create a new Holiday List
+            // Create new Holiday List
+            int currentYear = Calendar.getInstance().get(Calendar.YEAR);
             Map<String, Object> holidayListPayload = new HashMap<>();
             holidayListPayload.put("holiday_list_name", holidayListName);
             holidayListPayload.put("from_date", String.format("%d-01-01", currentYear));
             holidayListPayload.put("to_date", String.format("%d-12-31", currentYear));
-            holidayListPayload.put("weekly_off", "Sunday"); // Set Sunday as the default weekly off
+            holidayListPayload.put("weekly_off", "Sunday");
 
-            // Add a sample holiday (optional, adjust as needed)
+            // Add a sample holiday
             List<Map<String, Object>> holidays = new ArrayList<>();
             Map<String, Object> sampleHoliday = new HashMap<>();
             sampleHoliday.put("description", "New Year's Day");
@@ -104,23 +105,23 @@ public class CompanyService {
 
             ResponseEntity<Map> createResponse = erpNextApiService.postResource("Holiday List", holidayListPayload, sid);
             if (createResponse.getStatusCode().is2xxSuccessful()) {
+                logger.info("Holiday List '{}' created for company '{}'", holidayListName, companyName);
                 results.add(String.format("Line %d: Holiday List '%s' successfully created for company '%s'", lineNumber, holidayListName, companyName));
-                logger.info("Holiday List '{}' created successfully for company '{}'", holidayListName, companyName);
                 return holidayListName;
             } else {
                 String errorMsg = createResponse.getBody() != null ? createResponse.getBody().toString() : "Unknown error";
-                results.add(String.format("Line %d: Failed to create Holiday List '%s': %s", lineNumber, holidayListName, errorMsg));
                 logger.error("Failed to create Holiday List '{}' for company '{}': {}", holidayListName, companyName, errorMsg);
+                results.add(String.format("Line %d: Failed to create Holiday List '%s' for company '%s': %s", lineNumber, holidayListName, companyName, errorMsg));
                 return null;
             }
         } catch (HttpClientErrorException e) {
             String errorMsg = e.getResponseBodyAsString().isEmpty() ? e.getStatusText() : e.getResponseBodyAsString();
-            results.add(String.format("Line %d: Error creating Holiday List for company '%s': %s", lineNumber, companyName, errorMsg));
-            logger.error("Error creating Holiday List for company '{}': {}", companyName, errorMsg);
+            logger.error("HTTP Error creating Holiday List for company '{}': {}", companyName, errorMsg);
+            results.add(String.format("Line %d: HTTP Error creating Holiday List for company '%s': %s", lineNumber, companyName, errorMsg));
             return null;
         } catch (Exception e) {
+            logger.error("Error creating Holiday List for company '{}': {}", companyName, e.getMessage());
             results.add(String.format("Line %d: Error creating Holiday List for company '%s': %s", lineNumber, companyName, e.getMessage()));
-            logger.error("Error creating Holiday List for company '{}': {}", companyName, e.getMessage(), e);
             return null;
         }
     }

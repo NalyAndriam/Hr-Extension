@@ -685,7 +685,7 @@ public class ImportService {
         }
     }
 
-    private String getEmployeeCompany(String employeeId, String sid) {
+    public String getEmployeeCompany(String employeeId, String sid) { 
         try {
             String fields = "[\"company\"]";
             String filters = String.format("[[\"name\",\"=\",\"%s\"]]", employeeId);
