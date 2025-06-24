@@ -137,4 +137,17 @@ public class UtilService {
         // Retour sous format souhaité
         return date.format(outputFormatter);
     }
+
+    public double getPourcentage(double montant, double pourcentage) {
+        double valeurPourcent = montant * (pourcentage / 100.0);
+        return montant + valeurPourcent;
+        // switch (signe) {
+        //     case "+":
+        //         return montant + valeurPourcent;
+        //     case "-":
+        //         return montant - valeurPourcent;
+        //     default:
+        //         throw new IllegalArgumentException("Signe invalide : utilisez '+' ou '-'");
+        // }
+    }
 }

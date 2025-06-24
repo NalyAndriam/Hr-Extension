@@ -44,6 +44,11 @@
                     <i class="fas fa-chart-bar sidebar-icon"></i> Salary Analytics
                 </a>
             </li>
+            <li>
+                <a class="dropdown-item" th:href="@{/salaries/generate}" th:class="${activeMenu == 'salary-total' ? 'sidebar-item active' : 'sidebar-item'}">
+                    <i class="fas fa-chart-bar sidebar-icon"></i> Generating salary
+                </a>
+            </li>
 
  
             <!-- Sales Section (Optional - Uncomment if needed) -->

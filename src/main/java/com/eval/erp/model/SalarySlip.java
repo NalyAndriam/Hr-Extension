@@ -16,10 +16,28 @@ import java.util.Locale;
 public class SalarySlip {
     private static final Logger logger = LoggerFactory.getLogger(SalarySlip.class);
 
+    private String name;
     private String month; // Mois (ex. : 01/04/2025)
     private String employeeId; // Ref Employe
     private Double baseSalary; // Salaire Base (maintenant un Double pour gérer les décimales)
     private String salaryStructure; // Salaire (nom de la structure salariale)
+    private int status;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public int getStatus() {
+        return status;
+    }
+
+    public void setStatus(int status) {
+        this.status = status;
+    }
 
     @Autowired
     private UtilService utilService;
@@ -127,6 +145,7 @@ public class SalarySlip {
             data.put("start_date", utilService.formatDate(utilService.getFormattedDate(month), "yyyy-MM-dd"));
             data.put("end_date", utilService.getEndOfMonth(month, "dd/MM/yyyy"));
             data.put("posting_date", utilService.formatDate(utilService.getFormattedDate(month), "yyyy-MM-dd"));
+            data.put("docstatus", status);
             
             // Ajouter le salaire de base comme composant principal
             List<Map<String, Object>> earnings = new ArrayList<>();

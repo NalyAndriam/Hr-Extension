@@ -1,6 +1,8 @@
 package com.eval.erp.service;
 
 import com.eval.erp.model.SalarySlip;
+import com.eval.erp.model.SalaryStructureAssignment;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,6 +11,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 
 import jakarta.servlet.http.HttpSession;
+
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -198,6 +202,39 @@ public class ValidationService {
             logger.error("Error checking Salary Structure Assignment for employee {}, structure {}, date {}, base {}: {}", 
                         employeeId, salaryStructure, payrollDate, baseSalary, e.getMessage());
             return false;
+        }
+    }
+
+    public List<SalaryStructureAssignment> searchSalaryStructureAssignments(String filterString, String sid) {
+        try {
+            List<SalaryStructureAssignment> assignments = new ArrayList<>();
+            String fields = "[\"*\"]";
+
+            // Use filterString directly
+            ResponseEntity<Map> response = erpNextApiService.getResource("Salary Structure Assignment", fields, filterString, sid);
+            List<Map<String, Object>> assignmentData = (List<Map<String, Object>>) response.getBody().get("data");
+
+            for (Map<String, Object> data : assignmentData) {
+                SalaryStructureAssignment assignment = new SalaryStructureAssignment();
+                assignment.setUtilService(utilService); // Ensure utilService is set
+                assignment.setEmployeeId((String) data.get("employee"));
+                assignment.setSalaryStructure((String) data.get("salary_structure"));
+                assignment.setFromDate((String) data.get("from_date"));
+                assignment.setToDate((String) data.get("to_date"));
+                assignment.setBaseSalary(((Number) data.getOrDefault("base", 0)).doubleValue());
+                assignment.setCompany((String) data.get("company"));
+                assignments.add(assignment);
+            }
+
+            logger.info("Found {} Salary Structure Assignments with filters: {}, instance: {}", assignments.size(), filterString, this.hashCode());
+            return assignments;
+        } catch (HttpClientErrorException e) {
+            String errorMsg = e.getResponseBodyAsString().isEmpty() ? e.getStatusText() : e.getResponseBodyAsString();
+            logger.error("API error searching Salary Structure Assignments, instance: {}: {}", this.hashCode(), errorMsg);
+            throw new RuntimeException("API error searching Salary Structure Assignments: " + errorMsg, e);
+        } catch (Exception e) {
+            logger.error("Error searching Salary Structure Assignments, instance: {}: {}", this.hashCode(), e.getMessage());
+            throw new RuntimeException("Error searching Salary Structure Assignments: " + e.getMessage(), e);
         }
     }
 }

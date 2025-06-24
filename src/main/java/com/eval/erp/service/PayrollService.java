@@ -1,5 +1,8 @@
 package com.eval.erp.service;
 
+import com.eval.erp.model.Component;
+import com.eval.erp.model.Salary;
+import com.eval.erp.model.SalaryComponent;
 import com.eval.erp.model.SalarySlip;
 import com.eval.erp.model.SalaryStructure;
 import com.eval.erp.model.SalaryStructureAssignment;
@@ -18,6 +21,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import javax.swing.RowFilter.ComparisonType;
+
 @Service
 public class PayrollService {
 
@@ -32,6 +37,12 @@ public class PayrollService {
 
     @Autowired
     private ValidationService validationService;
+
+    @Autowired
+    private SalaryComponentService salaryComponentService;
+
+    @Autowired
+    private SalaryService salaryService;
 
     // Private constructor to prevent manual instantiation
     private PayrollService() {
@@ -161,6 +172,7 @@ public class PayrollService {
                 slip.setMonth((String) data.get("start_date")); // Assuming start_date is formatted as yyyy-MM-dd
                 slip.setBaseSalary(((Number) data.getOrDefault("gross_pay", 0)).doubleValue());
                 slip.setSalaryStructure((String) data.getOrDefault("salary_structure", ""));
+                slip.setStatus((int) data.get("docstatus"));
                 salarySlips.add(slip);
             }
 
@@ -372,4 +384,221 @@ public class PayrollService {
         logger.info("Checked Salary Structure {} exists: {}, instance: {}", structureName, exists, this.hashCode());
         return exists;
     }
+
+
+    //-------------------------------------------------------------------------------------------------------------------------------------
+    //----------------------------------------------------------------MODIF----------------------------------------------------------------
+    //-------------------------------------------------------------------------------------------------------------------------------------
+
+    // Filter SalarySlips by indemnity less than a specified amount
+    public List<SalarySlip> filterSalarySlipsByComponent(String component, double maxComp, String signe, String sid) {
+        List<Salary> filteredSlips = new ArrayList<>();
+
+        try {
+            // 1. Récupérer le composant de salaire à filtrer (ex: "Indemnité")
+            SalaryComponent comp = salaryComponentService.getSalaryComponentByName(component, sid);
+
+            // 2. Ne récupérer que les noms des Salary Slips pour alléger la requête initiale
+            String fields = "[\"name\"]";
+            ResponseEntity<Map> response = erpNextApiService.getResource("Salary Slip", fields, null, sid);
+            List<Map<String, Object>> slipData = (List<Map<String, Object>>) response.getBody().get("data");
+            List<Salary> salaries = salaryService.convertIntoSalaries(slipData);
+
+            for (Salary sal : salaries) {
+                // 3. Obtenir tous les détails du Salary Slip
+                sal = salaryService.getPayslipById(sal.getName(), sid);
+
+                // 🔎 Logs pour aider au débogage
+                logger.info("Gross Pay for Salary Slip {}: {}", sal.getName(), sal.getGrossPay());
+
+                StringBuilder earningsLog = new StringBuilder("Earnings: ");
+                for (Component c : sal.getEarnings()) {
+                    earningsLog.append(String.format("[%s: %.2f] ", c.getDescription(), c.getAmount()));
+                }
+                logger.info("Salary Slip {} - {}", sal.getName(), earningsLog.toString());
+
+                StringBuilder deductionsLog = new StringBuilder("Deductions: ");
+                for (Component c : sal.getDeductions()) {
+                    deductionsLog.append(String.format("[%s: %.2f] ", c.getDescription(), c.getAmount()));
+                }
+                logger.info("Salary Slip {} - {}", sal.getName(), deductionsLog.toString());
+
+                // 4. Filtrer selon le type (earning/deduction) et le montant
+                List<Component> components = comp.getType().equals("Earning") ? sal.getEarnings() : sal.getDeductions();
+
+                for (Component c : components) {
+                    if (c.getDescription().equals(component)) {
+                        if ("inferior".equals(signe) && c.getAmount() < maxComp) {
+                            filteredSlips.add(sal);
+                            break;
+                        } else if (!"inferior".equals(signe) && c.getAmount() > maxComp) {
+                            filteredSlips.add(sal);
+                            break;
+                        }
+                    }
+                }
+            }
+
+            logger.info("Found {} Salary Slips with component '{}' {} than {}", 
+                        filteredSlips.size(), component, 
+                        "inferior".equals(signe) ? "less" : "greater", 
+                        maxComp);
+
+            // ✅ Ne pas oublier de convertir la bonne liste !
+            return salaryService.convertSalariesToSalarySlips(filteredSlips, sid);
+
+        } catch (HttpClientErrorException e) {
+            String errorMsg = e.getResponseBodyAsString().isEmpty() ? e.getStatusText() : e.getResponseBodyAsString();
+            logger.error("API error filtering Salary Slips by component, instance: {}: {}", this.hashCode(), errorMsg);
+            throw new RuntimeException("API error: " + errorMsg, e);
+        } catch (Exception e) {
+            logger.error("Unexpected error filtering Salary Slips, instance: {}: {}", this.hashCode(), e.getMessage());
+            throw new RuntimeException("Error filtering Salary Slips: " + e.getMessage(), e);
+        }
+    }
+
+
+
+    // Delete a SalarySlip by its ID, canceling it first if not already canceled
+    public boolean deleteSalarySlip(String slipId, String sid) {
+    logger.info("Attempting to delete Salary Slip with ID: {}, instance: {}", slipId, this.hashCode());
+    try {
+        // Step 1: Fetch SalarySlip details to identify associated SalaryStructureAssignment
+        String slipFields = "[\"name\", \"status\", \"employee\", \"salary_structure\", \"start_date\", \"posting_date\"]";
+        String slipFilters = String.format("[[\"name\",\"=\",\"%s\"]]", slipId);
+        ResponseEntity<Map> slipResponse = erpNextApiService.getResource("Salary Slip", slipFields, slipFilters, sid);
+        List<Map<String, Object>> slipData = (List<Map<String, Object>>) slipResponse.getBody().get("data");
+
+        if (slipData == null || slipData.isEmpty()) {
+            logger.warn("Salary Slip with ID {} does not exist, instance: {}", slipId, this.hashCode());
+            throw new IllegalArgumentException("Salary Slip with ID " + slipId + " does not exist");
+        }
+
+        // Extract SalarySlip details
+        Map<String, Object> slip = slipData.get(0);
+        String status = (String) slip.get("status");
+        String employeeId = (String) slip.get("employee");
+        String salaryStructure = (String) slip.get("salary_structure");
+        String payrollDate = (String) slip.get("start_date"); // Use start_date instead of payroll_date
+        if (payrollDate == null) {
+            payrollDate = (String) slip.get("posting_date"); // Fallback to posting_date if start_date is null
+        }
+        logger.debug("Salary Slip {} details: status={}, employee={}, salary_structure={}, payroll_date={}, instance: {}", 
+                     slipId, status, employeeId, salaryStructure, payrollDate, this.hashCode());
+
+        // Step 2: Find and delete associated SalaryStructureAssignment
+        if (employeeId != null && salaryStructure != null && payrollDate != null) {
+            boolean assignmentExists = checkSalaryStructureAssignmentExists(employeeId, salaryStructure, payrollDate, sid);
+            if (assignmentExists) {
+                // Fetch the SalaryStructureAssignment
+                String assignmentFields = "[\"name\", \"docstatus\"]";
+                String assignmentFilters = String.format(
+                    "[[\"employee\",\"=\",\"%s\"],[\"salary_structure\",\"=\",\"%s\"],[\"from_date\",\"=\",\"%s\"]]",
+                    employeeId, salaryStructure, payrollDate
+                );
+                ResponseEntity<Map> assignmentResponse = erpNextApiService.getResource(
+                    "Salary Structure Assignment", assignmentFields, assignmentFilters, sid
+                );
+                List<Map<String, Object>> assignmentData = (List<Map<String, Object>>) assignmentResponse.getBody().get("data");
+
+                if (assignmentData != null && !assignmentData.isEmpty()) {
+                    String assignmentName = (String) assignmentData.get(0).get("name");
+                    Integer docstatus = (Integer) assignmentData.get(0).get("docstatus"); // 0: Draft, 1: Submitted, 2: Cancelled
+                    logger.debug("Found SalaryStructureAssignment {} for Salary Slip {}, docstatus={}, instance: {}", 
+                                 assignmentName, slipId, docstatus, this.hashCode());
+
+                    // Cancel the SalaryStructureAssignment if submitted
+                    if (docstatus == 1) { // Submitted
+                        logger.info("Canceling SalaryStructureAssignment {} for Salary Slip {}, instance: {}", 
+                                    assignmentName, slipId, this.hashCode());
+                        ResponseEntity<Map> cancelAssignmentResponse = erpNextApiService.cancelResource(
+                            "Salary Structure Assignment", assignmentName, sid
+                        );
+                        if (!cancelAssignmentResponse.getStatusCode().is2xxSuccessful()) {
+                            String errorMsg = cancelAssignmentResponse.getBody() != null 
+                                             ? cancelAssignmentResponse.getBody().toString() 
+                                             : "Unknown error";
+                            logger.error("Failed to cancel SalaryStructureAssignment {}: {}, instance: {}", 
+                                         assignmentName, errorMsg, this.hashCode());
+                            throw new RuntimeException("Failed to cancel SalaryStructureAssignment: " + errorMsg);
+                        }
+                        logger.info("Successfully canceled SalaryStructureAssignment {}, instance: {}", 
+                                    assignmentName, this.hashCode());
+                    } else if (docstatus == 2) { // Already Cancelled
+                        logger.info("SalaryStructureAssignment {} is already canceled, instance: {}", 
+                                    assignmentName, this.hashCode());
+                    } else {
+                        logger.warn("SalaryStructureAssignment {} has unexpected docstatus: {}, instance: {}", 
+                                    assignmentName, docstatus, this.hashCode());
+                        // Optionally, decide whether to proceed or throw an exception
+                    }
+
+                    // Delete the SalaryStructureAssignment
+                    logger.info("Deleting SalaryStructureAssignment {} for Salary Slip {}, instance: {}", 
+                                assignmentName, slipId, this.hashCode());
+                    ResponseEntity<Map> deleteAssignmentResponse = erpNextApiService.deleteResource(
+                        "Salary Structure Assignment", assignmentName, sid
+                    );
+                    if (deleteAssignmentResponse.getStatusCode().is2xxSuccessful()) {
+                        logger.info("Successfully deleted SalaryStructureAssignment {}, instance: {}", 
+                                    assignmentName, this.hashCode());
+                    } else {
+                        String errorMsg = deleteAssignmentResponse.getBody() != null 
+                                         ? deleteAssignmentResponse.getBody().toString() 
+                                         : "Unknown error";
+                        logger.error("Failed to delete SalaryStructureAssignment {}: {}, instance: {}", 
+                                     assignmentName, errorMsg, this.hashCode());
+                        throw new RuntimeException("Failed to delete SalaryStructureAssignment: " + errorMsg);
+                    }
+                }
+            } else {
+                logger.info("No SalaryStructureAssignment found for Salary Slip {}, employee {}, structure {}, date {}, instance: {}", 
+                            slipId, employeeId, salaryStructure, payrollDate, this.hashCode());
+            }
+        } else {
+            logger.warn("Incomplete Salary Slip data for finding SalaryStructureAssignment: employee={}, structure={}, payroll_date={}, instance: {}", 
+                        employeeId, salaryStructure, payrollDate, this.hashCode());
+        }
+
+        // Step 3: Proceed with SalarySlip deletion
+        // If the SalarySlip is submitted, cancel it first
+        if ("Submitted".equalsIgnoreCase(status)) {
+            logger.info("Canceling Salary Slip {} before deletion, instance: {}", slipId, this.hashCode());
+            ResponseEntity<Map> cancelResponse = erpNextApiService.cancelResource("Salary Slip", slipId, sid);
+            if (!cancelResponse.getStatusCode().is2xxSuccessful()) {
+                String errorMsg = cancelResponse.getBody() != null ? cancelResponse.getBody().toString() : "Unknown error";
+                logger.error("Failed to cancel Salary Slip {}: {}, instance: {}", slipId, errorMsg, this.hashCode());
+                throw new RuntimeException("Failed to cancel Salary Slip: " + errorMsg);
+            }
+            logger.info("Successfully canceled Salary Slip {}, instance: {}", slipId, this.hashCode());
+        } else if ("Cancelled".equalsIgnoreCase(status)) {
+            logger.info("Salary Slip {} is already canceled, proceeding to delete, instance: {}", slipId, this.hashCode());
+        } else {
+            logger.warn("Salary Slip {} has unexpected status: {}, cannot proceed with deletion, instance: {}", 
+                        slipId, status, this.hashCode());
+            throw new IllegalStateException("Salary Slip " + slipId + " has unexpected status: " + status);
+        }
+
+        // Delete the SalarySlip
+        ResponseEntity<Map> deleteResponse = erpNextApiService.deleteResource("Salary Slip", slipId, sid);
+        if (deleteResponse.getStatusCode().is2xxSuccessful()) {
+            logger.info("Successfully deleted Salary Slip {}, instance: {}", slipId, this.hashCode());
+            return true;
+        } else {
+            String errorMsg = deleteResponse.getBody() != null ? deleteResponse.getBody().toString() : "Unknown error";
+            logger.error("Failed to delete Salary Slip {}: {}, instance: {}", slipId, errorMsg, this.hashCode());
+            throw new RuntimeException("Failed to delete Salary Slip: " + errorMsg);
+        }
+
+    } catch (HttpClientErrorException e) {
+        String errorMsg = e.getResponseBodyAsString().isEmpty() ? e.getStatusText() : e.getResponseBodyAsString();
+        logger.error("API error deleting Salary Slip {}, instance: {}: {}", slipId, this.hashCode(), errorMsg);
+        throw new RuntimeException("API error deleting Salary Slip: " + errorMsg, e);
+    } catch (Exception e) {
+        logger.error("Error deleting Salary Slip {}, instance: {}: {}", slipId, this.hashCode(), e.getMessage());
+        throw new RuntimeException("Error deleting Salary Slip: " + e.getMessage(), e);
+    }
+}
+
+
 }
