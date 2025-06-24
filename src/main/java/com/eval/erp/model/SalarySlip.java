@@ -72,6 +72,14 @@ public class SalarySlip {
         }
     }
 
+    public void setBaseSalary(double baseSalary) {
+        if (baseSalary <= 0) {
+            logger.error("Base salary must be greater than 0: {}", baseSalary);
+            throw new IllegalArgumentException("Base salary must be greater than 0: " + baseSalary);
+        }
+        this.baseSalary = baseSalary;
+    }
+
     public String getSalaryStructure() {
         return salaryStructure;
     }

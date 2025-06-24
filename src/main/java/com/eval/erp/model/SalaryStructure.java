@@ -9,6 +9,8 @@ public class SalaryStructure {
     private String company;
     private List<String> results;
 
+    public SalaryStructure() {}
+
     public SalaryStructure(List<SalaryComponent> components, String salaryStructureName, String company) {
         this.components = components;
         this.salaryStructureName = salaryStructureName;
