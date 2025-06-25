@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ERPNext - Generer Salaire</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{/css/navbar.css}">
+    <link rel="stylesheet" th:href="@{/css/sidebar.css}">
+    <style>
+        .frappe-card { border: 1px solid #dee2e6; border-radius: 4px; padding: 15px; margin-bottom: 20px; }
+        .no-result { font-style: italic; text-align: center; }
+        .form-group { margin-bottom: 1.5rem; } /* Espacement vertical entre les champs */
+        @media print {
+            .no-print { display: none !important; }
+            .main-content { margin-left: 0; padding: 0; }
+            .frappe-card { border: none; border-shadow: none; padding: 0; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+     <div th:replace="~{navbar :: navbar}" class="no-print"></div>
+
+    <!-- Sidebar -->
+    <div th:replace="~{sidebar :: sidebar}" class="no-print"></div>
+
+    <!-- Main content -->
+    <div class="main-content">
+        <div class="container-fluid">
+            <!-- Page header -->
+            <div class="page-head">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="/home">Home</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Generate a salary</li>
+                    </ol>
+                </nav>
+                <h1 class="page-title">Generate a salary</h1>
+            </div>
+
+            <!-- Error message -->
+            <div th:if="${error}" class="alert alert-danger" role="alert">
+                <span th:text="${error}"></span>
+            </div>
+
+            <!-- Success message -->
+            <div th:if="${success}" class="alert alert-success" role="alert">
+                <span th:text="${success}"></span>
+            </div>
+
+            <!-- Form -->
+            <div class="frappe-card no-print">
+                <form th:action="@{/salaries/generate}" method="post">
+                    <!-- Select Employee -->
+                    <div class="form-group">
+                        <label for="employeeId" class="form-label">Employee :</label>
+                        <select id="employeeId" name="employeeId" class="form-select" required>
+                            <option value="">Choose an employee</option>
+                            <option th:each="employee : ${employees}"
+                                    th:value="${employee.name}"
+                                    th:text="${employee.employeeName}"></option>
+                        </select>
+                    </div>
+
+                    <!-- Input Month Debut -->
+                    <div class="form-group">
+                        <label for="monthStart" class="form-label">Starting month :</label>
+                        <input type="month" id="monthStart" name="monthStart" class="form-control" required
+                               th:value="${monthStart}" />
+                    </div>
+
+                    <!-- Input Month Fin -->
+                    <div class="form-group">
+                        <label for="monthEnd" class="form-label">Ending month :</label>
+                        <input type="month" id="monthEnd" name="monthEnd" class="form-control" required
+                               th:value="${monthEnd}" />
+                    </div>
+
+                    <!-- Input Number -->
+                    <div class="form-group">
+                        <label for="amount" class="form-label">Amount :</label>
+                        <input type="number" id="amount" name="amount" class="form-control" 
+                               min="0" step="0.01" th:value="${amount}" />
+                    </div>
+
+                    <!-- Bouton Valider -->
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">Generate</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</body>
+</html>

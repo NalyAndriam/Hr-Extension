@@ -1,6 +1,9 @@
 package com.eval.erp.service;
 
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
@@ -113,10 +116,38 @@ public class UtilService {
         try {
             Date date = getFormattedDate(month);
             String formattedMonth = formatDate(date, "yyyy-MM");
-            return String.format("%s-%s", normalizeName(employeeId), formattedMonth);
+            return String.format("Sal Slip/None/%s-%s", normalizeName(employeeId), formattedMonth); // Adjust if ERPNext format differs
         } catch (Exception e) {
             logger.error("Error generating Salary Slip name for employee {} and month {}: {}", employeeId, month, e.getMessage());
             throw new IllegalArgumentException("Error generating Salary Slip name: " + e.getMessage());
         }
+    }
+
+    public String convertMonthYearToFullDate(String input) {
+        // Formateur pour "MM-yyyy"
+        DateTimeFormatter inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM");
+        // Formateur pour "dd-MM-yyyy"
+        DateTimeFormatter outputFormatter = DateTimeFormatter.ofPattern("dd-MM-yyyy");
+
+        // Parse en YearMonth
+        YearMonth yearMonth = YearMonth.parse(input, inputFormatter);
+        // Création d'une date avec le jour = 1
+        LocalDate date = yearMonth.atDay(1);
+
+        // Retour sous format souhaité
+        return date.format(outputFormatter);
+    }
+
+    public double getPourcentage(double montant, double pourcentage) {
+        double valeurPourcent = montant * (pourcentage / 100.0);
+        return montant + valeurPourcent;
+        // switch (signe) {
+        //     case "+":
+        //         return montant + valeurPourcent;
+        //     case "-":
+        //         return montant - valeurPourcent;
+        //     default:
+        //         throw new IllegalArgumentException("Signe invalide : utilisez '+' ou '-'");
+        // }
     }
 }

@@ -2,6 +2,8 @@ package com.eval.erp.service;
 
 import com.eval.erp.model.Component;
 import com.eval.erp.model.Salary;
+import com.eval.erp.model.SalarySlip;
+import com.eval.erp.model.SalaryStructureAssignment;
 import com.eval.erp.model.SalarySummary;
 import com.eval.erp.model.SalaryTotal;
 import org.slf4j.Logger;
@@ -38,6 +40,9 @@ public class SalaryService {
 
     @Autowired
     private UtilService utilService;
+
+    @Autowired
+    private ValidationService validationService;
 
     public List<Salary> convertIntoSalaries(List<Map<String, Object>> salaryData) {
         List<Salary> salaries = new ArrayList<>();
@@ -418,5 +423,89 @@ public class SalaryService {
         dataset.put("hidden", hidden);
         logger.info("Created dataset: label={}, data={}", label, data);
         return dataset;
+    }
+
+    // Convert a List<Salary> to List<SalarySlip>
+    public List<SalarySlip> convertSalariesToSalarySlips(List<Salary> salaries, String sid) {
+        logger.info("Converting {} Salary objects to SalarySlip objects, instance: {}", 
+                    salaries != null ? salaries.size() : 0, this.hashCode());
+        List<SalarySlip> salarySlips = new ArrayList<>();
+
+        if (salaries == null || salaries.isEmpty()) {
+            logger.warn("Input list of Salaries is null or empty, instance: {}", this.hashCode());
+            return salarySlips;
+        }
+
+        SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM", Locale.ENGLISH);
+        String[] months = monthFormat.getDateFormatSymbols().getMonths();
+
+        for (Salary salary : salaries) {
+            try {
+                SalarySlip slip = new SalarySlip();
+                slip.setUtilService(utilService); 
+                slip.setName(salary.getName());
+                slip.setEmployeeId(salary.getEmployee());
+
+                // Convert month name and year to a formatted date string (e.g., "01/MM/yyyy")
+                String monthStr = salary.getMonth();
+                Integer year = salary.getYear();
+                String formattedMonth = null;
+                if (monthStr != null && year != null) {
+                    int monthIndex = Arrays.asList(months).indexOf(monthStr);
+                    if (monthIndex >= 0) {
+                        // Create a date string like "01/MM/yyyy"
+                        formattedMonth = String.format("01/%02d/%d", monthIndex + 1, year);
+                        // Optionally format to match utilService expectations
+                        formattedMonth = utilService.formatDate(utilService.getFormattedDate(formattedMonth), "dd/MM/yyyy");
+                    }
+                } else if (salary.getPostingDate() != null) {
+                    // Fallback to postingDate if month or year is null
+                    formattedMonth = utilService.formatDate(salary.getPostingDate(), "dd/MM/yyyy");
+                }
+
+                if (formattedMonth == null) {
+                    logger.warn("Could not determine valid month for Salary {}, instance: {}", salary.getName(), this.hashCode());
+                    continue; // Skip if no valid month can be determined
+                }
+                slip.setMonth(formattedMonth);
+
+                // Set baseSalary from earnings where description is "Salaire Base"
+                Double base = 0.0;
+                List<Component> earnings = salary.getEarnings();
+                if (earnings != null) {
+                    for (Component earning : earnings) {
+                        if ("Salaire Base".equalsIgnoreCase(earning.getDescription())) {
+                            base = earning.getAmount();
+                            break;
+                        }
+                    }
+                }
+                slip.setBaseSalary(base);
+
+                // Set salaryStructure (as per your previous requirement)
+                String salaryStructure = null;
+                if (earnings != null) {
+                    for (Component earning : earnings) {
+                        if ("Salaire Base".equalsIgnoreCase(earning.getDescription())) {
+                            salaryStructure = earning.getAmount().toString();
+                            break;
+                        }
+                    }
+                }
+
+                List<SalaryStructureAssignment> structure= validationService.searchSalaryStructureAssignments(null, sid);
+                slip.setSalaryStructure(structure.get(0).getSalaryStructure());
+
+                salarySlips.add(slip);
+            } catch (Exception e) {
+                logger.error("Error converting Salary {} to SalarySlip, instance: {}: {}", 
+                            salary.getName(), this.hashCode(), e.getMessage());
+                continue; // Skip invalid entries
+            }
+        }
+
+        logger.info("Converted {} Salary objects to {} SalarySlip objects, instance: {}", 
+                    salaries.size(), salarySlips.size(), this.hashCode());
+        return salarySlips;
     }
 }

@@ -158,7 +158,7 @@ public class ImportService {
         return results;
     }
 
-    private boolean checkEmployeeExists(String ref, String sid) throws Exception {
+    public boolean checkEmployeeExists(String ref, String sid) throws Exception {
         Map<String, String> refToNameMap = (Map<String, String>) session.getAttribute("employeeRefToNameMap");
         String employeeId = refToNameMap != null ? refToNameMap.getOrDefault(ref, ref) : ref;
         try {
@@ -390,7 +390,7 @@ public class ImportService {
     return summaries;
 }
     
-    private boolean checkComponentExists(String componentName, String sid) throws Exception {
+    public boolean checkComponentExists(String componentName, String sid) throws Exception {
         try {
             String fields = "[\"name\"]";
             String filters = "[[\"salary_component\",\"=\",\"" + componentName + "\"]]";
@@ -404,7 +404,7 @@ public class ImportService {
         }
     }
 
-    private boolean checkStructureExists(String structureName, String sid) throws Exception {
+    public boolean checkStructureExists(String structureName, String sid) throws Exception {
         try {
             String fields = "[\"name\"]";
             String filters = "[[\"name\",\"=\",\"" + structureName + "\"]]";
@@ -597,7 +597,7 @@ public class ImportService {
         }
     }
 
-    private boolean createSalaryStructureAssignment(SalarySlip salarySlip, String sid, int lineNumber, List<String> results) {
+    public boolean createSalaryStructureAssignment(SalarySlip salarySlip, String sid, int lineNumber, List<String> results) {
         try {
             Map<String, Object> assignmentPayload = new HashMap<>();
             assignmentPayload.put("doctype", "Salary Structure Assignment");
@@ -701,7 +701,7 @@ public class ImportService {
         }
     }
 
-    private boolean checkSalarySlipExists(String employeeId, String month, String sid) throws Exception {
+    public boolean checkSalarySlipExists(String employeeId, String month, String sid) throws Exception {
         try {
             String fields = "[\"name\"]";
             String formattedMonth = utilService.formatDate(utilService.getFormattedDate(month), "yyyy-MM-dd");
