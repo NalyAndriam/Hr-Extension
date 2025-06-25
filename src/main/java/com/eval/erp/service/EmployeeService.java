@@ -2,19 +2,19 @@ package com.eval.erp.service;
 
 import com.eval.erp.model.Employee;
 import com.eval.erp.model.Salary;
+
+import jakarta.servlet.http.HttpSession;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -28,6 +28,8 @@ public class EmployeeService {
     private final UtilService utilService;
     private final CompanyService companyService;
     private final SalaryService salaryService;
+    @Autowired
+    private HttpSession session;
 
     @Value("${erpnext.api.url}")
     private String frappeApiUrl;
@@ -78,6 +80,52 @@ public class EmployeeService {
         dto.setDateOfJoining(joining);
         dto.setDateOfBirth(birth);
         return dto;
+    }
+
+    public boolean createEmployee(Employee employee, String sid) {
+        try {
+            employee.setUtilService(utilService);
+            employee.validate();
+            Map<String, String> refToNameMap = (Map<String, String>) session.getAttribute("employeeRefToNameMap");
+            if (refToNameMap == null) {
+                refToNameMap = new HashMap<>();
+                session.setAttribute("employeeRefToNameMap", refToNameMap);
+            }
+            String ref = employee.getName();
+            if (checkEmployeeExists(ref, sid)) {
+                logger.warn("Employee with ID {} already exists", ref);
+                return false;
+            }
+            ResponseEntity<Map> response = erpNextApiService.postResource("Employee", employee.toMap(false), sid);
+            if (response.getStatusCode().is2xxSuccessful()) {
+                String erpName = (String) ((Map) response.getBody().get("data")).get("name");
+                refToNameMap.put(ref, erpName);
+                session.setAttribute("employeeRefToNameMap", refToNameMap);
+                logger.info("Successfully created employee with ID: {}", ref);
+                return true;
+            }
+            String errorMsg = response.getBody() != null ? response.getBody().toString() : "Unknown error";
+            logger.error("Failed to create employee with ID {}: {}", ref, errorMsg);
+            return false;
+        } catch (Exception e) {
+            logger.error("Error creating employee with ID {}: {}", employee.getName(), e.getMessage());
+            throw new RuntimeException("Failed to create employee: " + e.getMessage(), e);
+        }
+    }
+
+    public boolean checkEmployeeExists(String ref, String sid) throws Exception {
+        Map<String, String> refToNameMap = (Map<String, String>) session.getAttribute("employeeRefToNameMap");
+        String employeeId = refToNameMap != null ? refToNameMap.getOrDefault(ref, ref) : ref;
+        try {
+            String fields = "[\"name\"]";
+            String filters = "[ [\"name\",\"=\",\"" + employeeId + "\"] ]";
+            ResponseEntity<Map> response = erpNextApiService.getResource("Employee", fields, filters, sid);
+            List<Map<String, Object>> employeeData = (List<Map<String, Object>>) response.getBody().get("data");
+            return !employeeData.isEmpty();
+        } catch (Exception e) {
+            logger.error("Error checking employee existence for ref {} (ERPNext ID: {}): {}", ref, employeeId, e.getMessage());
+            return false;
+        }
     }
 
     public Employee getEmployeeById(String employeeId, String sid) throws Exception {
@@ -172,6 +220,45 @@ public class EmployeeService {
         } catch (Exception e) {
             logger.error("Error searching employees: {}", e.getMessage(), e);
             throw new Exception("Error searching employees: " + e.getMessage());
+        }
+    }
+
+    public boolean updateEmployee(Employee employee, String sid) {
+        try {
+            employee.setUtilService(utilService);
+            employee.validate();
+            ResponseEntity<Map> response = erpNextApiService.updateResource("Employee", employee.getName(), employee.toMap(true), sid);
+            if (response.getStatusCode().is2xxSuccessful()) {
+                logger.info("Successfully updated employee with ID {}", employee.getName());
+                return true;
+            } else {
+                String errorMsg = response.getBody() != null ? response.getBody().toString() : "Unknown error";
+                logger.error("Failed to update employee with ID {}: {}", employee.getName(), errorMsg);
+                return false;
+            }
+        } catch (Exception e) {
+            logger.error("Error updating employee with ID {}: {}", employee.getName(), e.getMessage());
+            throw new RuntimeException("Error updating employee: " + e.getMessage(), e);
+        }
+    }
+
+    public boolean deleteEmployee(String employeeId, String sid) {
+        try {
+            ResponseEntity<Map> response = erpNextApiService.deleteResource("Employee", employeeId, sid);
+            if (response.getStatusCode().is2xxSuccessful()) {
+                logger.info("Successfully deleted employee with ID {}", employeeId);
+                return true;
+            } else {
+                String errorMsg = response.getBody() != null ? response.getBody().toString() : "Unknown error";
+                logger.error("Failed to delete employee with ID {}: {}", employeeId, errorMsg);
+                return false;
+            }
+        } catch (HttpClientErrorException e) {
+            logger.error("API error deleting employee with ID {}: {}", employeeId, e.getResponseBodyAsString());
+            throw new RuntimeException("API error deleting employee: " + e.getMessage(), e);
+        } catch (Exception e) {
+            logger.error("Error deleting employee with ID {}: {}", employeeId, e.getMessage());
+            throw new RuntimeException("Error deleting employee: " + e.getMessage(), e);
         }
     }
 

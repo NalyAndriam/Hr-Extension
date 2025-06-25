@@ -1,7 +1,5 @@
 package com.eval.erp.service;
 
-import com.eval.erp.model.Employee;
-import com.eval.erp.model.Salary;
 import com.eval.erp.model.SalaryComponent;
 
 import org.slf4j.Logger;
@@ -10,16 +8,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.multipart.MultipartFile;
-
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 public class SalaryComponentService {
@@ -28,11 +19,14 @@ public class SalaryComponentService {
 
     private final ErpNextApiService erpNextApiService;
 
+    private final UtilService utilService;
+
     @Value("${erpnext.api.url}")
     private String frappeApiUrl;
 
-    public SalaryComponentService(ErpNextApiService erpNextApiService) {
+    public SalaryComponentService(ErpNextApiService erpNextApiService, UtilService utilService) {
         this.erpNextApiService = erpNextApiService;
+        this.utilService= utilService;
     }
 
     private List<SalaryComponent> convertIntoSalaryComponent(List<Map<String, Object>> componentData) {
@@ -60,6 +54,41 @@ public class SalaryComponentService {
 
         logger.info("Converted {} Salary Components", salaryComponents.size());
         return salaryComponents;
+    }
+
+    public boolean createSalaryComponent(SalaryComponent component, String sid) {
+        try {
+            component.validate();
+            if (checkComponentExists(component.getName(), sid)) {
+                logger.warn("Salary Component {} already exists", component.getName());
+                return false;
+            }
+            ResponseEntity<Map> response = erpNextApiService.postResource("Salary Component", component.toMap(false), sid);
+            if (response.getStatusCode().is2xxSuccessful()) {
+                logger.info("Successfully created salary component: {}", component.getName());
+                return true;
+            }
+            String errorMsg = response.getBody() != null ? response.getBody().toString() : "Unknown error";
+            logger.error("Failed to create salary component {}: {}", component.getName(), errorMsg);
+            return false;
+        } catch (Exception e) {
+            logger.error("Error creating salary component {}: {}", component.getName(), e.getMessage());
+            throw new RuntimeException("Failed to create salary component: " + e.getMessage(), e);
+        }
+    }
+
+    public boolean checkComponentExists(String componentName, String sid) throws Exception {
+        try {
+            String fields = "[\"name\"]";
+            String filters = "[[\"salary_component\",\"=\",\"" + componentName + "\"]]";
+            ResponseEntity<Map> response = erpNextApiService.getResource("Salary Component", fields, filters, sid);
+            List<Map<String, Object>> componentData = (List<Map<String, Object>>) response.getBody().get("data");
+            logger.info("Vérification de l'existence du composant avec salary_component: {}, trouvé: {}", componentName, !componentData.isEmpty());
+            return !componentData.isEmpty();
+        } catch (Exception e) {
+            logger.error("Error checking component existence for {}: {}", componentName, e.getMessage());
+            throw new Exception("Erreur lors de la vérification de l'existence du composant: " + e.getMessage());
+        }
     }
 
     public List<SalaryComponent> getAllSalaryComponents(String sid) throws Exception {
@@ -108,6 +137,28 @@ public class SalaryComponentService {
             throw new Exception("Error fetching Salary Components: " + e.getMessage());
         }
     }
+
+    public boolean updateSalaryComponent(SalaryComponent component, String sid) {
+        try {
+            component.validate();
+            ResponseEntity<Map> response = erpNextApiService.updateResource("Salary Component", utilService.normalizeName(component.getName()), component.toMap(true), sid);
+            if (response.getStatusCode().is2xxSuccessful()) {
+                logger.info("Successfully updated salary component {}", component.getName());
+                return true;
+            } else {
+                String errorMsg = response.getBody() != null ? response.getBody().toString() : "Unknown error";
+                logger.error("Failed to update salary component {}: {}", component.getName(), errorMsg);
+                return false;
+            }
+        } catch (Exception e) {
+            logger.error("Error updating salary component {}: {}", component.getName(), e.getMessage());
+            throw new RuntimeException("Error updating salary component: " + e.getMessage(), e);
+        }
+    }
+
+    
+
+    
 
 
 }
